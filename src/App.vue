@@ -9,14 +9,14 @@
     <transition name="fade-view" mode="out-in">
       <LoginView v-if="!isAuthenticated" @login-success="handleLoginSuccess" />
       
-      <div class="app-layout" :class="{ 'sidebar-mobile-open': isSidebarOpen }" v-else>
+      <div class="app-layout" :class="{ 'sidebar-mobile-open': isSidebarOpen, 'sidebar-collapsed': isSidebarCollapsed }" v-else>
         <button class="mobile-toggle" @click="isSidebarOpen = !isSidebarOpen">
           <span v-if="!isSidebarOpen">☰</span>
           <span v-else>✕</span>
         </button>
 
         <div class="sidebar-wrapper">
-          <Sidebar @navigate="handleNavigate" @logout="handleLogout" />
+          <Sidebar @navigate="handleNavigate" @logout="handleLogout" @toggle-collapse="toggleSidebarCollapse" />
         </div>
         
         <div class="sidebar-overlay" @click="isSidebarOpen = false"></div>
@@ -45,6 +45,7 @@ import ReportsView from './components/ReportsView.vue';
 const currentView = ref('board');
 const isAuthenticated = ref(false);
 const isSidebarOpen = ref(false);
+const isSidebarCollapsed = ref(false);
 
 const fullText = "WK VIDROS: Forros e PVC.";
 const displayedText = ref("");
@@ -57,6 +58,10 @@ const changeView = (viewName) => {
 const handleNavigate = (dest) => {
   changeView(dest);
   isSidebarOpen.value = false;
+};
+
+const toggleSidebarCollapse = () => {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value;
 };
 
 const activeComponent = computed(() => {
@@ -115,119 +120,23 @@ onMounted(() => {
 </script>
 
 <style>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: 'Inter', sans-serif;
-  -webkit-tap-highlight-color: transparent;
-}
-
-body {
-  background-color: #000000;
-  color: #ffffff;
-  overflow: hidden;
-  position: fixed;
-  width: 100%;
-  height: 100%;
-}
-
-.app-layout {
-  display: flex;
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
-  background-color: #000000;
-}
-
-.sidebar-wrapper {
-  flex-shrink: 0;
-  width: 260px;
-  height: 100%;
-  border-right: 1px solid #1a1a1a;
-  z-index: 1000;
-  transition: transform 0.3s ease;
-  background: #000;
-}
-
-.content-area {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  overflow-y: auto;
-  background-color: #050505;
-  position: relative;
-  -webkit-overflow-scrolling: touch;
-}
-
-.mobile-toggle {
-  display: none;
-  position: fixed;
-  top: 15px;
-  right: 15px;
-  width: 48px;
-  height: 48px;
-  background: #40c4ff;
-  border: none;
-  border-radius: 4px;
-  color: #000;
-  font-size: 1.5rem;
-  z-index: 1100;
-  cursor: pointer;
-  box-shadow: 0 4px 15px rgba(64, 196, 255, 0.4);
-}
-
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+body { background-color: #000000; color: #ffffff; overflow: hidden; position: fixed; width: 100%; height: 100%; }
+.app-layout { display: flex; height: 100vh; width: 100vw; overflow: hidden; background-color: #000000; }
+.sidebar-wrapper { flex-shrink: 0; width: 260px; height: 100%; border-right: 1px solid #1a1a1a; z-index: 1000; transition: width 0.3s ease, transform 0.3s ease; background: #000; }
+.app-layout.sidebar-collapsed .sidebar-wrapper { width: 88px; }
+.content-area { flex: 1; min-width: 0; height: 100%; overflow-y: auto; background-color: #050505; position: relative; -webkit-overflow-scrolling: touch; }
+.mobile-toggle { display: none; position: fixed; top: 15px; right: 15px; width: 48px; height: 48px; background: #40c4ff; border: none; border-radius: 4px; color: #000; font-size: 1.5rem; z-index: 1100; cursor: pointer; box-shadow: 0 4px 15px rgba(64, 196, 255, 0.4); }
 @media (max-width: 768px) {
   .mobile-toggle { display: flex; align-items: center; justify-content: center; }
-  
-  .sidebar-wrapper {
-    position: fixed;
-    left: 0;
-    top: 0;
-    transform: translateX(-100%);
-  }
-
-  .sidebar-mobile-open .sidebar-wrapper {
-    transform: translateX(0);
-  }
-
-  .sidebar-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.85);
-    z-index: 999;
-  }
-
-  .sidebar-mobile-open .sidebar-overlay {
-    display: block;
-  }
-
-  .content-area {
-    padding-top: 60px;
-  }
-
-  .typing-text { font-size: 1.4rem !important; text-align: center; padding: 20px; }
+  .sidebar-wrapper { position: fixed; left: 0; top: 0; transform: translateX(-100%); }
+  .sidebar-mobile-open .sidebar-wrapper { transform: translateX(0); }
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 999; }
+  .sidebar-mobile-open .sidebar-overlay { display: block; }
+  .content-area { padding-top: 60px; }
 }
-
-.intro-overlay {
-  position: fixed;
-  inset: 0;
-  background-color: #000000;
-  z-index: 9999;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.typing-text {
-  color: #40c4ff;
-  font-family: 'Courier New', monospace;
-  font-size: 2.2rem;
-  letter-spacing: 2px;
-  font-weight: bold;
-}
-
+.intro-overlay { position: fixed; inset: 0; background-color: #000000; z-index: 9999; display: flex; justify-content: center; align-items: center; }
+.typing-text { color: #40c4ff; font-family: 'Courier New', monospace; font-size: 2.2rem; font-weight: bold; }
 .cursor { animation: blink 1s infinite; color: #ffffff; }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 .fade-leave-active { transition: opacity 1s; }
