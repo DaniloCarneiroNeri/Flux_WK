@@ -1,0 +1,7 @@
+config/*.pfx
+config/*.pem
+*.pfx
+.env
+__pycache__/
+node_modules/
+dist/
