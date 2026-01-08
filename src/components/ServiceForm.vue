@@ -9,7 +9,7 @@
         <div class="top-row">
           <div class="form-group">
             <label>CLIENTE</label>
-            <select v-model="selectedClientId" class="dark-input">
+            <select v-model="selectedClientId" class="modern-input" required>
               <option :value="null" disabled>Selecione um cliente...</option>
               <option v-for="client in clientes" :key="client.id" :value="client.id">
                 {{ client.nome }}
@@ -38,10 +38,45 @@
           <button type="button" class="btn-add" @click="addItem">+ ADICIONAR ITEM</button>
         </div>
         <div class="form-actions">
-          <button type="button" class="btn-cancel" @click="$emit('cancel')">DESCARTAR</button>
-          <button type="submit" class="btn-primary">GERAR ORÇAMENTO</button>
+          <button type="button" class="btn-cancel" @click="resetForm">DESCARTAR</button>
+          <button type="submit" class="btn-primary">{{ isEditing ? 'ATUALIZAR' : 'GERAR' }} ORÇAMENTO</button>
         </div>
       </form>
+    </div>
+
+    <div class="list-section">
+      <div class="section-header">
+        <h3>ORÇAMENTOS SALVOS</h3>
+      </div>
+      <div class="table-container">
+        <table class="modern-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>CLIENTE</th>
+              <th>DATA</th>
+              <th>TOTAL</th>
+              <th>AÇÕES</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="orc in orcamentosSalvos" :key="orc.id">
+              <td>#{{ orc.id }}</td>
+              <td>{{ getClienteNome(orc.cliente_id) }}</td>
+              <td>{{ orc.data }}</td>
+              <td class="highlight">{{ formatCurrency(orc.total) }}</td>
+              <td>
+                <div class="action-buttons">
+                  <button class="btn-action edit" @click="editOrcamento(orc)" title="Editar">✎</button>
+                  <button class="btn-action pdf" @click="downloadPDF(orc)" title="Baixar PDF">PDF</button>
+                  <button class="btn-action os" @click="gerarOS(orc)" title="Gerar O.S.">📋</button>
+                  <button class="btn-action delete" @click="deleteOrcamento(orc.id)" title="Excluir">✕</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>
@@ -49,63 +84,100 @@
 <script setup>
 import { ref, computed } from 'vue';
 import demoData from '../data/demoData.json';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import logoImg from '../logo.png';
 
 defineEmits(['cancel']);
 
 const clientes = ref(demoData.clientes);
+const orcamentosSalvos = ref(demoData.orcamentos || []);
 const selectedClientId = ref(null);
 const itens = ref([]);
+const isEditing = ref(false);
+const editingId = ref(null);
 
-const addItem = () => {
-  itens.value.push({ descricao: '', quantidade: 1, valor: 0 });
+const addItem = () => { itens.value.push({ descricao: '', quantidade: 1, valor: 0, unidade: '' }); };
+const removeItem = (index) => { itens.value.splice(index, 1); };
+const totalOrcamento = computed(() => { return itens.value.reduce((total, item) => total + (item.quantidade * item.valor), 0); });
+const formatCurrency = (value) => { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0); };
+const getClienteNome = (id) => { const cliente = clientes.value.find(c => c.id === id); return cliente ? cliente.nome : 'Cliente N/A'; };
+
+const resetForm = () => {
+  selectedClientId.value = null;
+  itens.value = [];
+  isEditing.value = false;
+  editingId.value = null;
 };
 
-const removeItem = (index) => {
-  itens.value.splice(index, 1);
+const editOrcamento = (orc) => {
+  isEditing.value = true;
+  editingId.value = orc.id;
+  selectedClientId.value = orc.cliente_id;
+  itens.value = JSON.parse(JSON.stringify(orc.itens));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-const totalOrcamento = computed(() => {
-  return itens.value.reduce((total, item) => total + (item.quantidade * item.valor), 0);
-});
+const deleteOrcamento = (id) => { if (confirm('Deseja excluir este orçamento?')) orcamentosSalvos.value = orcamentosSalvos.value.filter(o => o.id !== id); };
+const gerarOS = (orc) => { alert(`Ordem de Serviço gerada a partir do orçamento #${orc.id}`); };
 
-const formatCurrency = (value) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+const downloadPDF = (orc) => {
+  const doc = new jsPDF();
+  const cliente = clientes.value.find(c => c.id === orc.cliente_id) || { nome: '', endereco: '', fone: '', cpf: '' };
+  const dataEmissao = orc.data || new Date().toLocaleDateString('pt-BR');
+  doc.setDrawColor(0); doc.setLineWidth(0.3); doc.rect(10, 10, 190, 38); doc.addImage(logoImg, 'JPG', 25, 12, 45, 33);
+  doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.text('W&K vidros', 140, 20, { align: 'center' });
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.text('CPF/CNPJ: 55952245000100', 140, 27, { align: 'center' });
+  doc.text('Avenida 21 de abril', 140, 32, { align: 'center' }); doc.text('Telefone(s): 62998766290', 140, 37, { align: 'center' });
+  doc.rect(10, 50, 63, 6); doc.rect(73, 50, 63, 6); doc.rect(136, 50, 64, 6); doc.text(`Orçamento nº: ${orc.id}`, 12, 54); doc.text(`Emitido em: ${dataEmissao}`, 75, 54); doc.text(`Válido até:`, 138, 54);
+  doc.rect(10, 58, 190, 6); doc.text(`Cliente:  ${cliente.nome}`, 12, 62); doc.rect(10, 64, 190, 6); doc.text(`Endereço: ${cliente.endereco || ''}`, 12, 68);
+  doc.rect(10, 70, 95, 6); doc.rect(105, 70, 95, 6); doc.text(`Fone: ${cliente.fone || ''}`, 12, 74); doc.text(`CPF: ${cliente.cpf || ''}`, 107, 74);
+  const tableRows = orc.itens.map(item => [item.quantidade, item.unidade || '', item.descricao, item.valor.toFixed(2), (item.quantidade * item.valor).toFixed(2)]);
+  while (tableRows.length < 10) tableRows.push(['', '', '', '', '']);
+  autoTable(doc, { startY: 80, head: [['Quant.', 'Unid.', 'Descrição', 'Unitário', 'Total']], body: tableRows, theme: 'grid', headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.3, lineColor: [0, 0, 0], halign: 'center' }, styles: { lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0], fontSize: 9 }, columnStyles: { 0: { halign: 'center', cellWidth: 20 }, 1: { halign: 'center', cellWidth: 20 }, 2: { halign: 'left' }, 3: { halign: 'center', cellWidth: 30 }, 4: { halign: 'center', cellWidth: 30 } } });
+  const summaryY = doc.lastAutoTable.finalY + 8;
+  autoTable(doc, { startY: summaryY, head: [['Subtotal', 'Desconto', 'Acréscimo', 'Total']], body: [[formatCurrency(orc.total), formatCurrency(0), formatCurrency(0), formatCurrency(orc.total)]], theme: 'grid', headStyles: { fillColor: [230, 230, 230], textColor: [0, 0, 0], lineWidth: 0.3, lineColor: [0, 0, 0], halign: 'center' }, styles: { lineColor: [0, 0, 0], lineWidth: 0.1, halign: 'center' } });
+  const footerY = 270; doc.line(20, footerY, 95, footerY); doc.line(115, footerY, 190, footerY); doc.text('W&K vidros', 57, footerY + 5, { align: 'center' }); doc.text(cliente.nome, 152, footerY + 5, { align: 'center' });
+  doc.save(`Orcamento_WK_${cliente.nome.replace(/\s+/g, '_')}.pdf`);
 };
 
 const save = () => {
-  // Lógica para salvar o orçamento
-  console.log({
-    clienteId: selectedClientId.value,
-    itens: itens.value,
-    total: totalOrcamento.value
-  });
+  const dataEmissao = new Date().toLocaleDateString('pt-BR');
+  const orcamentoNo = isEditing.value ? editingId.value : Date.now();
+  const novoOrcamento = { id: orcamentoNo, cliente_id: selectedClientId.value, data: dataEmissao, total: totalOrcamento.value, itens: JSON.parse(JSON.stringify(itens.value)) };
+  if (!isEditing.value) orcamentosSalvos.value.unshift(novoOrcamento); else { const idx = orcamentosSalvos.value.findIndex(o => o.id === editingId.value); if (idx !== -1) orcamentosSalvos.value[idx] = novoOrcamento; }
+  downloadPDF(novoOrcamento); resetForm();
 };
 </script>
 
 <style scoped>
-.form-view-container { padding: 30px; background: #050505; }
-.form-header { margin-bottom: 30px; }
-.form-header h2 { color: #fff; font-size: 1.5rem; font-weight: 900; }
-.form-header p { color: #666; font-size: 0.9rem; }
-.flux-form label { font-size: 0.7rem; color: #666; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; display: block; }
-.dark-input { background: #000; border: 1px solid #222; color: #fff; padding: 14px; border-radius: 4px; outline: none; width: 100%; font-size: 0.9rem; }
-.dark-input:focus { border-color: #40c4ff; }
-.main-form { background: #0a0a0a; border: 1px solid #1a1a1a; padding: 30px; border-radius: 4px; }
+.form-view-container { padding: 30px; background: #f4f7f6; }
+.form-header { margin-bottom: 25px; }
+.form-header h2 { color: #2d3436; font-size: 1.5rem; font-weight: 900; }
+.form-header p { color: #95a5a6; font-size: 0.9rem; }
+.main-form { background: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 30px; border-left: 5px solid #56a6c1; }
 .top-row { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
-.total-val { font-size: 2rem; font-weight: 900; color: #40c4ff; margin-top: 5px; }
-.items-section { margin: 30px 0; border: 1px solid #1a1a1a; border-radius: 4px; background: #000; }
-.items-header { background: #111; padding: 15px; font-size: 0.7rem; font-weight: 800; color: #555; }
-.items-list { padding: 10px; }
-.empty-items { padding: 20px; text-align: center; color: #444; }
-.item-row { display: grid; grid-template-columns: 3fr 1fr 1fr 1fr auto; gap: 10px; align-items: center; padding: 10px; border-bottom: 1px solid #1a1a1a; }
-.item-row:last-child { border-bottom: none; }
-.item-input { background: #0a0a0a; border: 1px solid #222; color: #fff; padding: 10px; border-radius: 4px; font-size: 0.85rem; }
-.item-input.price { text-align: right; }
-.item-total { font-weight: bold; color: #ccc; text-align: right; font-size: 0.9rem; }
-.btn-remove-item { background: none; border: none; color: #c0392b; font-size: 1.2rem; cursor: pointer; }
-.btn-add { width: 100%; background: transparent; border: none; color: #40c4ff; padding: 15px; font-weight: 800; cursor: pointer; }
-.form-actions { display: flex; justify-content: flex-end; gap: 15px; border-top: 1px solid #1a1a1a; padding-top: 25px; }
-.btn-primary { background: #40c4ff; color: #000; border: none; padding: 15px 30px; font-weight: 900; border-radius: 4px; cursor: pointer; }
-.btn-cancel { background: transparent; color: #555; border: 1px solid #222; padding: 15px 30px; border-radius: 4px; }
-@media (max-width: 768px) { .top-row { grid-template-columns: 1fr; gap: 20px; } .form-actions { flex-direction: column-reverse; } .item-row { grid-template-columns: 1fr; gap: 8px; } }
+.total-val { font-size: 2rem; font-weight: 900; color: #56a6c1; }
+.items-section { margin: 25px 0; border: 1px solid #e0e6ed; border-radius: 8px; background: #fcfdfe; }
+.items-header { background: #f8f9fa; padding: 15px; font-size: 0.75rem; font-weight: 800; color: #7f8c8d; border-bottom: 1px solid #e0e6ed; }
+.item-row { display: grid; grid-template-columns: 3fr 1fr 1fr 1fr auto; gap: 12px; padding: 15px; border-bottom: 1px solid #f0f3f7; align-items: center; }
+.item-input { background: #fff; border: 1px solid #e0e6ed; padding: 10px; border-radius: 6px; width: 100%; outline: none; }
+.item-input:focus { border-color: #56a6c1; }
+.btn-add { width: 100%; border: none; color: #56a6c1; padding: 15px; font-weight: 800; cursor: pointer; background: transparent; }
+.form-actions { display: flex; justify-content: flex-end; gap: 15px; margin-top: 25px; }
+.btn-primary { background: #56a6c1; color: #fff; border: none; padding: 14px 30px; font-weight: 900; border-radius: 6px; cursor: pointer; }
+.btn-cancel { background: #f1f2f6; color: #7f8c8d; border: none; padding: 14px 30px; border-radius: 6px; cursor: pointer; }
+.list-section { background: #fff; border-radius: 8px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+.modern-table { width: 100%; border-collapse: collapse; }
+.modern-table th { text-align: left; padding: 15px; color: #95a5a6; border-bottom: 1px solid #f0f3f7; font-size: 0.7rem; text-transform: uppercase; }
+.modern-table td { padding: 15px; border-bottom: 1px solid #f8f9fa; color: #2d3436; }
+.highlight { color: #56a6c1; font-weight: 800; }
+.action-buttons { display: flex; gap: 8px; }
+.btn-action { background: #f8f9fa; border: 1px solid #e0e6ed; color: #56a6c1; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold; }
+.btn-action:hover { background: #56a6c1; color: #fff; }
+
+.form-group { display: flex; flex-direction: column; gap: 8px; }
+.form-group label { font-size: 0.7rem; color: #7f8c8d; font-weight: 700; text-transform: uppercase; }
+.modern-input { background: #f8f9fa; border: 1px solid #e0e6ed; color: #333; padding: 14px; border-radius: 6px; width: 100%; outline: none; transition: border-color 0.2s; }
+.modern-input:focus { border-color: #56a6c1; background: #fff; }
 </style>

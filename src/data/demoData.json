@@ -9,84 +9,27 @@
       "municipio": "Iaciara",
       "uf": "GO",
       "email": "contato@santacecilia.demo"
-    },
-    {
-      "id": 902,
-      "nome": "João das Couves (Demo)",
-      "tipo_pessoa": "PF",
-      "documento": "123.456.789-00",
-      "telefone": "(62) 98888-7777",
-      "municipio": "Posse",
-      "uf": "GO",
-      "email": "joao@demo.com"
     }
   ],
-  "servicos": [
+  "orcamentos": [
     {
-      "id": 101,
-      "descricao": "Troca de Óleo Motor Diesel",
-      "custo": 150.00,
-      "valor_venda": 350.00,
-      "quantidade_estoque": 10
-    },
-    {
-      "id": 102,
-      "descricao": "Alinhamento e Balanceamento Trator",
-      "custo": 50.00,
-      "valor_venda": 400.00,
-      "quantidade_estoque": 999
-    },
-    {
-      "id": 103,
-      "descricao": "Desconto",
-      "custo": 0,
-      "valor_venda": 0,
-      "quantidade_estoque": 999
+      "id": 1001,
+      "cliente_id": 901,
+      "data": "05/01/2026",
+      "total": 1250.00,
+      "itens": [
+        { "descricao": "Vidro Temperado 8mm Incolor", "quantidade": 2, "valor": 625.00, "unidade": "m2" }
+      ]
     }
   ],
+  "servicos": [],
   "despesas": [
-    {
-      "id": 501,
-      "descricao": "Aluguel Galpão (Demo)",
-      "valor": 1200.00,
-      "tipo": "Corporativa",
-      "data_cadastro": "2025-12-01",
-      "fixa": true
-    },
-    {
-      "id": 502,
-      "descricao": "Energia Elétrica",
-      "valor": 450.50,
-      "tipo": "Corporativa",
-      "data_cadastro": "2025-12-10",
-      "fixa": false
-    }
+    { "id": 1, "descricao": "Energia Elétrica", "valor": 450.80, "vencimento": "2026-01-20" },
+    { "id": 2, "descricao": "Aluguel Galpão", "valor": 1500.00, "vencimento": "2026-01-10" }
   ],
   "ordens": [
-    {
-      "id": 2001,
-      "cliente_id": 901,
-      "valor_total": 750.00,
-      "observacoes": "Serviço de demonstração.\nPIX: 000.000.000-00",
-      "status": "pending",
-      "data_abertura": "2025-12-12T08:00:00",
-      "clientes": { "nome": "Fazenda Santa Cecília (Demo)" },
-      "itens_ordem": [
-        { "servico_id": 101, "descricao_item": "Troca de Óleo Motor Diesel", "valor_unitario": 350.00, "quantidade": 1 },
-        { "servico_id": 102, "descricao_item": "Alinhamento e Balanceamento Trator", "valor_unitario": 400.00, "quantidade": 1 }
-      ]
-    },
-    {
-      "id": 2002,
-      "cliente_id": 902,
-      "valor_total": 400.00,
-      "observacoes": "Aguardando peças.",
-      "status": "late",
-      "data_abertura": "2025-12-01T10:30:00",
-      "clientes": { "nome": "João das Couves (Demo)" },
-      "itens_ordem": [
-        { "servico_id": 102, "descricao_item": "Alinhamento e Balanceamento Trator", "valor_unitario": 400.00, "quantidade": 1 }
-      ]
-    }
+    { "id": 501, "cliente_id": 901, "status": "completed", "valor_total": 2500.00, "data_conclusao": "2026-01-05", "clientes": { "nome": "Fazenda Santa Cecília" } },
+    { "id": 502, "cliente_id": 901, "status": "completed", "valor_total": 1800.00, "data_conclusao": "2026-01-15", "clientes": { "nome": "Fazenda Santa Cecília" } },
+    { "id": 503, "cliente_id": 901, "status": "production", "valor_total": 3000.00, "data_conclusao": "2026-01-20", "clientes": { "nome": "Fazenda Santa Cecília" } }
   ]
 }
