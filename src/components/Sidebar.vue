@@ -3,6 +3,9 @@
     <div class="sidebar-header">
       <img src="../logo.jpg" alt="WK Vidros Logo" class="sidebar-logo" />
       <div class="brand-title">FLUX-WK</div>
+      <div class="collapse-toggle" @click="toggleCollapse">
+        <span class="icon">‹</span>
+      </div>
     </div>
     
     <nav class="menu">
@@ -37,9 +40,6 @@
         <span class="icon">🚪</span>
         <span>Sair do Sistema</span>
       </div>
-      <div class="collapse-toggle" @click="toggleCollapse">
-        <span class="icon">‹</span>
-      </div>
     </div>
   </aside>
 </template>
@@ -52,22 +52,36 @@ const currentSelection = ref('board');
 const isCollapsed = ref(false);
 
 const toggleCadastro = () => {
-  if (isCollapsed.value) return;
+  if (isCollapsed.value) {
+    toggleCollapse();
+    cadastroOpen.value = true;
+    return;
+  }
   cadastroOpen.value = !cadastroOpen.value;
 };
 const navigate = (destination) => {
   currentSelection.value = destination;
   emit('navigate', destination);
+  const isSubmenuDestination = ['client-register', 'service-register', 'expense-register'].includes(destination);
+  
+  if (isSubmenuDestination && !isCollapsed.value) {
+      toggleCollapse();
+  } else {
+      cadastroOpen.value = false;
+  }
 };
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value;
+  if (isCollapsed.value) {
+    cadastroOpen.value = false;
+  }
   emit('toggle-collapse');
 };
 </script>
 
 <style scoped>
 .sidebar { width: 100%; height: 100%; background-color: #0a0a0a; border-right: 1px solid #1a1a1a; color: #e0e0e0; display: flex; flex-direction: column; overflow: hidden; }
-.sidebar-header { display: flex; flex-direction: column; align-items: center; padding: 30px 20px; border-bottom: 1px solid #1a1a1a; }
+.sidebar-header { position: relative; display: flex; flex-direction: column; align-items: center; padding: 30px 20px; border-bottom: 1px solid #1a1a1a; }
 .sidebar-logo {   width: 130px;
   height: auto;
   margin-bottom: 10px;
@@ -124,6 +138,9 @@ const toggleCollapse = () => {
   display: none;
 }
 .collapse-toggle {
+  position: absolute;
+  top: 25px;
+  right: -15px;
   width: 30px;
   height: 30px;
   border-radius: 50%;
@@ -134,7 +151,6 @@ const toggleCollapse = () => {
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s ease;
-  flex-shrink: 0;
 }
 .collapse-toggle:hover {
   background: #40c4ff;

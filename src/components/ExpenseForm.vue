@@ -35,7 +35,7 @@ const save = () => {};
 .form-header { margin-bottom: 25px; }
 .form-header h2 { color: #fff; font-size: 1.5rem; font-weight: 900; }
 .form-header p { color: #666; font-size: 0.9rem; }
-.expense-card { background: #0a0a0a; border: 1px solid #1a1a1a; border-left: 4px solid #c0392b; padding: 25px; border-radius: 4px; max-width: 800px; margin: 0 auto; }
+.expense-card { background: #0a0a0a; border: 1px solid #1a1a1a; border-left: 4px solid #c0392b; padding: 25px; border-radius: 4px; }
 .flux-form label { font-size: 0.7rem; color: #666; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; display: block; }
 .dark-input { background: #000; border: 1px solid #222; color: #fff; padding: 14px; border-radius: 4px; outline: none; width: 100%; font-size: 0.9rem; }
 .dark-input:focus { border-color: #c0392b; }
