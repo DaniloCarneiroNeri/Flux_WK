@@ -30,6 +30,10 @@ def get_clientes():
 def create_cliente(cliente: ClienteCreate):
     try:
         data = cliente.dict()
+        
+        if "id" in data:
+            del data["id"]
+            
         response = supabase.table("clientes").insert(data).execute()
         if response.data:
             return {"message": "Cliente cadastrado", "id": response.data[0]['id']}

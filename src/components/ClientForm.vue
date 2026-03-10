@@ -129,7 +129,7 @@ const loadClientes = async () => {
   try {
     clientes.value = await api.get('/clientes');
   } catch (e) {
-    alert("Erro ao carregar clientes");
+    console.error("Erro ao carregar lista");
   }
 };
 
@@ -154,22 +154,26 @@ const showNewForm = () => {
 };
 
 const cancelForm = () => { form.value = null; };
-
-const editClient = (cliente) => { 
-  form.value = { ...cliente }; 
-};
+const editClient = (cliente) => { form.value = { ...cliente }; };
 
 const handleSubmit = async () => {
   try {
-    if (form.value.id) {
-      await api.put(`/clientes/${form.value.id}`, form.value);
-    } else {
-      await api.post('/clientes', form.value);
+    const payload = { ...form.value };
+    
+    if (!payload.id) {
+      delete payload.id;
     }
+
+    if (form.value.id) {
+      await api.put(`/clientes/${form.value.id}`, payload);
+    } else {
+      await api.post('/clientes', payload);
+    }
+    
     await loadClientes();
     form.value = null;
   } catch (e) {
-    alert("Erro ao salvar cliente: Verifique os campos obrigatórios");
+    alert("Erro ao salvar: Verifique a conexão com o banco");
   }
 };
 
