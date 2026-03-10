@@ -10,24 +10,72 @@
         <div v-if="form" class="form-wrapper">
           <h3 class="form-title">{{ form.id ? 'EDITAR CLIENTE' : 'NOVO CLIENTE' }}</h3>
           <form @submit.prevent="handleSubmit" class="flux-form">
-            <div class="form-group">
-              <label>NOME COMPLETO / RAZÃO SOCIAL</label>
-              <input type="text" v-model="form.nome" class="modern-input" required />
+            <div class="form-row-mobile">
+              <div class="form-group">
+                <label>TIPO PESSOA</label>
+                <select v-model="form.tipo_pessoa" class="modern-input" required>
+                  <option value="F">Física</option>
+                  <option value="J">Jurídica</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>NOME / RAZÃO SOCIAL</label>
+                <input type="text" v-model="form.nome" class="modern-input" required />
+              </div>
             </div>
+
             <div class="form-row-mobile">
               <div class="form-group">
                 <label>DOCUMENTO (CPF/CNPJ)</label>
-                <input type="text" v-model="form.documento" class="modern-input" />
+                <input type="text" v-model="form.documento" class="modern-input" required />
+              </div>
+              <div class="form-group">
+                <label>INSCRIÇÃO ESTADUAL</label>
+                <input type="text" v-model="form.inscricao_estadual" class="modern-input" />
+              </div>
+            </div>
+
+            <div class="form-row-mobile">
+              <div class="form-group">
+                <label>E-MAIL</label>
+                <input type="email" v-model="form.email" class="modern-input" required />
               </div>
               <div class="form-group">
                 <label>TELEFONE</label>
-                <input type="text" v-model="form.telefone" class="modern-input" />
+                <input type="text" v-model="form.telefone" class="modern-input" required />
               </div>
             </div>
-            <div class="form-group">
-              <label>ENDEREÇO</label>
-              <input type="text" v-model="form.endereco" class="modern-input" />
+
+            <div class="form-row-mobile">
+              <div class="form-group">
+                <label>CEP</label>
+                <input type="text" v-model="form.cep" class="modern-input" required />
+              </div>
+              <div class="form-group">
+                <label>ENDEREÇO (LOGRADOURO)</label>
+                <input type="text" v-model="form.endereco" class="modern-input" required />
+              </div>
             </div>
+
+            <div class="form-row-three">
+              <div class="form-group">
+                <label>NÚMERO</label>
+                <input type="text" v-model="form.numero" class="modern-input" required />
+              </div>
+              <div class="form-group">
+                <label>BAIRRO</label>
+                <input type="text" v-model="form.bairro" class="modern-input" required />
+              </div>
+              <div class="form-group">
+                <label>CIDADE</label>
+                <input type="text" v-model="form.municipio" class="modern-input" required />
+              </div>
+              <div class="form-group">
+                <label>UF</label>
+                <input type="text" v-model="form.uf" class="modern-input" maxlength="2" required />
+              </div>
+            </div>
+
             <div class="form-actions-mobile">
               <button type="button" class="btn-cancel" @click="cancelForm">CANCELAR</button>
               <button type="submit" class="btn-primary">{{ form.id ? 'ATUALIZAR' : 'SALVAR' }}</button>
@@ -55,7 +103,7 @@
               <tr v-for="cliente in clientes" :key="cliente.id">
                 <td class="client-cell">
                   <strong>{{ cliente.nome }}</strong>
-                  <span>{{ cliente.documento }}</span>
+                  <span>{{ cliente.documento }} - {{ cliente.municipio }}/{{ cliente.uf }}</span>
                 </td>
                 <td class="text-right">
                   <button class="btn-circle edit" @click="editClient(cliente)">✎</button>
@@ -81,15 +129,35 @@ const loadClientes = async () => {
   try {
     clientes.value = await api.get('/clientes');
   } catch (e) {
-    alert("Erro ao carregar clientes: " + e.message);
+    alert("Erro ao carregar clientes");
   }
 };
 
 onMounted(loadClientes);
 
-const showNewForm = () => { form.value = { id: null, nome: '', documento: '', telefone: '', endereco: '' }; };
+const showNewForm = () => { 
+  form.value = { 
+    id: null, 
+    nome: '', 
+    documento: '', 
+    telefone: '', 
+    endereco: '',
+    tipo_pessoa: 'F',
+    inscricao_estadual: '',
+    email: '',
+    municipio: '',
+    cep: '',
+    numero: '',
+    bairro: '',
+    uf: ''
+  }; 
+};
+
 const cancelForm = () => { form.value = null; };
-const editClient = (cliente) => { form.value = { ...cliente }; };
+
+const editClient = (cliente) => { 
+  form.value = { ...cliente }; 
+};
 
 const handleSubmit = async () => {
   try {
@@ -101,12 +169,12 @@ const handleSubmit = async () => {
     await loadClientes();
     form.value = null;
   } catch (e) {
-    alert(e.message);
+    alert("Erro ao salvar cliente: Verifique os campos obrigatórios");
   }
 };
 
 const deleteClient = async (id) => {
-  if (confirm('Excluir este cliente?')) {
+  if (confirm('Deseja excluir este cliente?')) {
     try {
       await api.delete(`/clientes/${id}`);
       await loadClientes();
@@ -124,34 +192,34 @@ const deleteClient = async (id) => {
 .form-header h2 { color: #2d3436; font-size: 1.5rem; font-weight: 900; }
 .form-header p { color: #95a5a6; font-size: 0.9rem; }
 .responsive-layout { display: flex; gap: 30px; }
-.main-card { flex: 1; border-left: 5px solid #56a6c1; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
-.list-card { flex: 1.5; background: #fff; padding: 0; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); overflow: hidden; }
+.main-card { flex: 1.2; border-left: 5px solid #56a6c1; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+.list-card { flex: 1; background: #fff; padding: 0; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); overflow: hidden; }
 .form-title { font-size: 0.8rem; color: #56a6c1; font-weight: 800; margin-bottom: 25px; letter-spacing: 1px; }
-.flux-form { display: flex; flex-direction: column; gap: 20px; }
-.form-group { display: flex; flex-direction: column; gap: 8px; }
-.form-row-mobile { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.flux-form { display: flex; flex-direction: column; gap: 15px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-row-mobile { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+.form-row-three { display: grid; grid-template-columns: 0.5fr 1fr 1fr 0.4fr; gap: 15px; }
 .form-actions-mobile { display: flex; gap: 12px; margin-top: 15px; }
-label { font-size: 0.7rem; color: #7f8c8d; font-weight: 700; text-transform: uppercase; }
-.modern-input { background: #f8f9fa; border: 1px solid #e0e6ed; color: #333; padding: 14px; border-radius: 6px; outline: none; }
+label { font-size: 0.65rem; color: #7f8c8d; font-weight: 700; text-transform: uppercase; }
+.modern-input { background: #f8f9fa; border: 1px solid #e0e6ed; color: #333; padding: 12px; border-radius: 6px; outline: none; font-size: 0.85rem; }
 .modern-input:focus { border-color: #56a6c1; background: #fff; box-shadow: 0 0 0 3px rgba(86,166,193,0.1); }
-.btn-primary { flex: 1; background: #56a6c1; color: #fff; border: none; padding: 14px; font-weight: 900; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 10px rgba(86,166,193,0.2); }
+.btn-primary { flex: 1; background: #56a6c1; color: #fff; border: none; padding: 14px; font-weight: 900; border-radius: 6px; cursor: pointer; }
 .btn-cancel { flex: 1; background: #f1f2f6; border: none; color: #7f8c8d; padding: 14px; border-radius: 6px; font-weight: 700; }
 .list-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #f8f9fa; border-bottom: 1px solid #f0f3f7; }
 .list-header h4 { font-size: 0.7rem; color: #444; font-weight: 800; letter-spacing: 1px; }
 .btn-new-client { background: #56a6c1; color: #fff; border: none; padding: 8px 16px; font-weight: 700; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
-.table-container { flex: 1; overflow-y: auto; }
+.table-container { height: 600px; overflow-y: auto; }
 .modern-table { width: 100%; border-collapse: collapse; }
 .modern-table th { color: #95a5a6; padding: 15px 20px; text-align: left; font-size: 0.7rem; text-transform: uppercase; background: #fcfdfe; }
 .modern-table td { padding: 15px 20px; border-bottom: 1px solid #f0f3f7; }
-.client-cell strong { color: #2d3436; font-size: 0.95rem; display: block; }
-.client-cell span { color: #95a5a6; font-size: 0.8rem; }
+.client-cell strong { color: #2d3436; font-size: 0.9rem; display: block; }
+.client-cell span { color: #95a5a6; font-size: 0.75rem; }
 .text-right { text-align: right; }
-.btn-circle { width: 36px; height: 36px; border-radius: 50%; border: 1px solid #f0f3f7; cursor: pointer; margin-left: 8px; background: #fff; transition: all 0.2s; }
+.btn-circle { width: 32px; height: 32px; border-radius: 50%; border: 1px solid #f0f3f7; cursor: pointer; margin-left: 5px; background: #fff; transition: all 0.2s; }
 .edit { color: #56a6c1; }
-.edit:hover { background: #56a6c1; color: #fff; }
 .del { color: #e74c3c; }
-.del:hover { background: #e74c3c; color: #fff; }
 .placeholder-form { text-align: center; color: #95a5a6; margin: auto; padding: 40px; }
-.icon-placeholder { font-size: 4rem; opacity: 0.2; }
-@media (max-width: 900px) { .responsive-layout { flex-direction: column; } .form-row-mobile { grid-template-columns: 1fr; } }
+.icon-placeholder { font-size: 3rem; opacity: 0.2; }
+@media (max-width: 1100px) { .responsive-layout { flex-direction: column; } .form-row-three { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 600px) { .form-row-mobile { grid-template-columns: 1fr; } }
 </style>
