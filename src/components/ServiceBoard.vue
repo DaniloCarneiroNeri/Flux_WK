@@ -149,10 +149,16 @@
           </div>
 
           <div class="modal-footer">
-            <button class="btn-sec" @click="closeModal">FECHAR</button>
-            <button class="btn-pri" @click="saveOrder" :disabled="saving || isLocked">
-              {{ saving ? 'SALVANDO...' : 'ATUALIZAR O.S.' }}
-            </button>
+            <div class="footer-actions-left">
+              <button class="btn-action-alt" @click="emitReceipt" :disabled="!isEditing">EMITIR RECIBO</button>
+              <button class="btn-action-alt" disabled title="Em breve">EMITIR NFE</button>
+            </div>
+            <div class="footer-actions-right">
+              <button class="btn-sec" @click="closeModal">FECHAR</button>
+              <button class="btn-pri" @click="saveOrder" :disabled="saving || isLocked">
+                {{ saving ? 'SALVANDO...' : 'ATUALIZAR O.S.' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -176,6 +182,9 @@
 <script setup>
 import { ref, computed, watch, onMounted, reactive } from 'vue';
 import { api } from '../services/api';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import logoImg from '../logo.png';
 
 const viewMode = ref('kanban');
 const ordens = ref([]);
@@ -253,7 +262,7 @@ const isLocked = computed(() => isEditing.value && form.value?.status === 'bille
 
 watch(() => (form.value ? [form.value.items, form.value.desconto] : null), () => {
   if (form.value) {
-    form.value.valor_total = subtotalItems.value - (form.value.desconto || 0);
+    form.value.valor_total = subtotalItems.value - (parseFloat(form.value.desconto) || 0);
   }
 }, { deep: true });
 
@@ -318,6 +327,57 @@ const onDrop = async (targetColumnTitle) => {
 };
 
 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+
+const emitReceipt = () => {
+  const doc = new jsPDF();
+  const client = dbClients.value.find(c => c.id === form.value.cliente_id) || { nome: 'Consumidor' };
+  const dateStr = new Date().toLocaleDateString('pt-BR');
+  
+  doc.setDrawColor(86, 166, 193);
+  doc.setLineWidth(0.5);
+  doc.rect(10, 10, 190, 40);
+  doc.addImage(logoImg, 'PNG', 15, 15, 35, 30);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇO', 60, 25);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('WK VIDROS - Forros e PVC', 60, 32);
+  doc.text('CNPJ: 55.952.245/0001-00', 60, 37);
+  doc.text('Avenida 21 de Abril - Telefone: (62) 99876-6290', 60, 42);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DADOS DO CLIENTE', 10, 60);
+  doc.line(10, 62, 200, 62);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`NOME: ${client.nome}`, 10, 68);
+  doc.text(`CPF/CNPJ: ${client.documento || '---'}`, 10, 73);
+  doc.text(`TELEFONE: ${client.telefone || '---'}`, 10, 78);
+  doc.text(`DATA DE EMISSÃO: ${dateStr}`, 140, 68);
+  doc.text(`O.S. Nº: ${form.value.id}`, 140, 73);
+  
+  const rows = form.value.items.map(i => [
+    i.descricao_item, 
+    i.quantidade, 
+    formatCurrency(i.valor_unitario), 
+    formatCurrency(i.quantidade * i.valor_unitario)
+  ]);
+  
+  autoTable(doc, { 
+    startY: 85, 
+    head: [['Descrição', 'Qtd', 'Unitário', 'Total']], 
+    body: rows, 
+    theme: 'grid', 
+    headStyles: { fillColor: [86, 166, 193] } 
+  });
+  
+  const finalY = doc.lastAutoTable.finalY + 10;
+  doc.setFont('helvetica', 'bold');
+  doc.text(`SUBTOTAL: ${formatCurrency(subtotalItems.value)}`, 140, finalY);
+  doc.text(`DESCONTO: ${formatCurrency(form.value.desconto)}`, 140, finalY + 5);
+  doc.setFontSize(12);
+  doc.text(`TOTAL PAGO: ${formatCurrency(form.value.valor_total)}`, 140, finalY + 12);
+  doc.save(`Recibo_OS_${form.value.id}.pdf`);
+};
 </script>
 
 <style scoped>
@@ -362,11 +422,13 @@ const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'curre
 .text-right { text-align: right; }
 
 .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
-.modal-card { background: #fff; width: 100%; max-width: 650px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); display: flex; flex-direction: column; max-height: 90vh; }
+.modal-card { background: #fff; width: 100%; max-width: 650px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); display: flex; flex-direction: column; max-height: 95vh; }
 .modal-header { padding: 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
 .modal-body { padding: 24px; overflow-y: auto; flex: 1; }
-.modal-footer { padding: 24px; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; gap: 12px; }
+.modal-footer { padding: 20px 24px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .close-x { background: transparent; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }
+
+.footer-actions-left, .footer-actions-right { display: flex; gap: 12px; }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .field-group { display: flex; flex-direction: column; gap: 8px; }
@@ -394,6 +456,9 @@ const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'curre
 .btn-pri:hover { background: #0f172a; }
 .btn-pri:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-sec { background: transparent; color: #94a3b8; border: none; font-weight: 700; cursor: pointer; padding: 12px; }
+.btn-action-alt { background: #fff; border: 1px solid #e2e8f0; color: #56a6c1; padding: 10px 16px; border-radius: 10px; font-weight: 700; font-size: 0.7rem; cursor: pointer; transition: 0.2s; }
+.btn-action-alt:hover:not(:disabled) { background: #f8fafc; border-color: #56a6c1; }
+.btn-action-alt:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .custom-alert-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); z-index: 2000; display: flex; align-items: center; justify-content: center; }
 .alert-box { background: #fff; padding: 32px; border-radius: 24px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
@@ -405,13 +470,8 @@ const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'curre
 .btn-close-alert { width: 100%; background: #1e293b; color: #fff; border: none; padding: 12px; border-radius: 12px; font-weight: 800; cursor: pointer; }
 
 @media (max-width: 768px) {
-  .board-header { flex-direction: column; align-items: stretch; }
-  .header-controls { justify-content: space-between; }
-  .kanban-container { gap: 15px; }
-  .kanban-column { min-width: 85vw; }
-  .os-financial-footer { grid-template-columns: 1fr; gap: 15px; }
-  .modern-grid th:nth-child(3), .modern-grid td:nth-child(3) { display: none; }
-  .form-grid { grid-template-columns: 1fr; }
-  .full-width { grid-column: span 1; }
+  .modal-footer { flex-direction: column; height: auto; padding: 16px; gap: 16px; }
+  .footer-actions-left, .footer-actions-right { width: 100%; justify-content: center; }
+  .btn-action-alt, .btn-pri, .btn-sec { flex: 1; font-size: 0.65rem; }
 }
 </style>
