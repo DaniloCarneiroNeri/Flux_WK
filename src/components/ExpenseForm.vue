@@ -1,67 +1,67 @@
 <template>
-  <div class="form-view-container">
-    <div class="form-header">
-      <h2>REGISTRAR DESPESA</h2>
-      <p>Adicione uma nova saída no fluxo de caixa.</p>
-    </div>
-    <div class="form-card expense-card">
-      <form @submit.prevent="save" class="flux-form">
-        <div class="form-group">
-          <label>DESCRIÇÃO DA DESPESA</label>
-          <input type="text" v-model="form.descricao" class="modern-input" placeholder="Ex: Compra de material" required />
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>VALOR (R$)</label>
-            <input type="number" v-model.number="form.valor" class="modern-input expense-text" placeholder="0,00" step="0.01" required />
-          </div>
-          <div class="form-group">
-            <label>DATA DE VENCIMENTO</label>
-            <input type="date" v-model="form.vencimento" class="modern-input" required />
-          </div>
-        </div>
-        <div class="form-actions-row">
-          <button v-if="isEditing" type="button" class="btn-cancel-edit" @click="resetForm">CANCELAR</button>
-          <button type="submit" class="btn-save-exp">
-            {{ isEditing ? 'ATUALIZAR DESPESA' : 'REGISTRAR DESPESA' }}
-          </button>
-        </div>
-      </form>
-    </div>
-
-    <div class="list-section">
-      <div class="section-header">
-        <h3>DESPESAS REGISTRADAS</h3>
+  <div class="view-container">
+    <header class="view-header">
+      <div>
+        <h2>REGISTRAR DESPESA</h2>
+        <p>Gestão de fluxo de caixa e saídas operacionais</p>
       </div>
-      <div class="table-container">
-        <table class="modern-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>DESCRIÇÃO</th>
-              <th>VENCIMENTO</th>
-              <th>VALOR</th>
-              <th>AÇÕES</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="expense in expenses" :key="expense.id">
-              <td>#{{ expense.id }}</td>
-              <td>{{ expense.descricao }}</td>
-              <td>{{ formatDate(expense.vencimento) }}</td>
-              <td class="expense-text-table">{{ formatCurrency(expense.valor) }}</td>
-              <td>
-                <div class="action-buttons">
-                  <button class="btn-action edit" @click="editExpense(expense)" title="Editar">✎</button>
-                  <button class="btn-action delete" @click="deleteExpense(expense.id)" title="Excluir">✕</button>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="expenses.length === 0">
-              <td colspan="5" class="empty-cell">Nenhuma despesa registrada.</td>
-            </tr>
-          </tbody>
-        </table>
+    </header>
+
+    <div class="layout-flex">
+      <div class="expense-form-card">
+        <form @submit.prevent="save" class="exp-form">
+          <div class="f-group">
+            <label>DESCRIÇÃO</label>
+            <input type="text" v-model="form.descricao" class="m-input-lg" placeholder="Ex: Compra de Vidro Laminado" required />
+          </div>
+          <div class="f-row">
+            <div class="f-group">
+              <label>VALOR (R$)</label>
+              <input type="number" v-model.number="form.valor" class="m-input-lg highlight-red" step="0.01" required />
+            </div>
+            <div class="f-group">
+              <label>VENCIMENTO</label>
+              <input type="date" v-model="form.vencimento" class="m-input-lg" required />
+            </div>
+          </div>
+          <div class="f-actions">
+            <button v-if="isEditing" type="button" class="btn-cancel" @click="resetForm">CANCELAR</button>
+            <button type="submit" class="btn-save-exp">
+              {{ isEditing ? 'ATUALIZAR' : 'CONFIRMAR LANÇAMENTO' }}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="expense-list-card">
+        <div class="list-head">
+          <h3>ÚLTIMOS LANÇAMENTOS</h3>
+        </div>
+        <div class="table-responsive">
+          <table class="m-table">
+            <thead>
+              <tr>
+                <th>DESCRIÇÃO</th>
+                <th>DATA</th>
+                <th>VALOR</th>
+                <th class="text-center">AÇÕES</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="exp in expenses" :key="exp.id">
+                <td><strong>{{ exp.descricao }}</strong></td>
+                <td>{{ formatDate(exp.vencimento) }}</td>
+                <td class="val-red">{{ formatCurrency(exp.valor) }}</td>
+                <td class="text-center">
+                  <div class="action-row">
+                    <button class="b-icon" @click="editExpense(exp)">✎</button>
+                    <button class="b-icon del" @click="deleteExpense(exp.id)">✕</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -119,21 +119,36 @@ const editExpense = (expense) => {
 </script>
 
 <style scoped>
-.form-view-container { padding: 30px; background: #f4f7f6; min-height: 100%; }
-.form-header { margin-bottom: 25px; }
-.form-header h2 { color: #2d3436; font-size: 1.5rem; font-weight: 900; }
-.expense-card { background: #fff; border-left: 5px solid #e74c3c; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 30px; }
-label { font-size: 0.7rem; color: #7f8c8d; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; display: block; }
-.modern-input { background: #f8f9fa; border: 1px solid #e0e6ed; padding: 14px; border-radius: 6px; width: 100%; outline: none; }
-.modern-input:focus { border-color: #56a6c1; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
-.expense-text { color: #e74c3c; font-weight: 800; }
-.btn-save-exp { background: #56a6c1; color: #fff; border: none; padding: 16px; font-weight: 900; border-radius: 6px; cursor: pointer; width: 100%; font-size: 0.95rem; }
-.list-section { background: #fff; border-radius: 8px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
-.modern-table { width: 100%; border-collapse: collapse; }
-.modern-table th { text-align: left; padding: 15px; color: #95a5a6; border-bottom: 1px solid #f0f3f7; font-size: 0.7rem; text-transform: uppercase; }
-.modern-table td { padding: 15px; border-bottom: 1px solid #f8f9fa; color: #2d3436; }
-.expense-text-table { color: #e74c3c; font-weight: 800; }
-.action-buttons { display: flex; gap: 8px; }
-.btn-action { background: #f8f9fa; border: 1px solid #e0e6ed; padding: 8px; border-radius: 6px; cursor: pointer; color: #56a6c1; }
+.view-container { padding: 32px; background: #f8fafc; min-height: 100vh; }
+.view-header { margin-bottom: 32px; }
+.view-header h2 { font-size: 1.5rem; font-weight: 900; color: #1e293b; }
+.view-header p { color: #64748b; font-size: 0.9rem; }
+
+.layout-flex { display: flex; flex-direction: column; gap: 32px; }
+.expense-form-card { background: #fff; border-left: 6px solid #ef4444; padding: 32px; border-radius: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
+.exp-form { display: flex; flex-direction: column; gap: 24px; }
+.f-row { display: flex; gap: 24px; flex-wrap: wrap; }
+.f-group { flex: 1; min-width: 250px; display: flex; flex-direction: column; gap: 8px; }
+label { font-size: 0.7rem; font-weight: 800; color: #94a3b8; }
+.m-input-lg { background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 12px; font-size: 1.1rem; color: #1e293b; outline: none; }
+.highlight-red { color: #ef4444; font-weight: 900; }
+.btn-save-exp { background: #ef4444; color: #fff; border: none; padding: 18px 32px; border-radius: 12px; font-weight: 800; cursor: pointer; flex: 1; transition: 0.2s; }
+.btn-save-exp:hover { background: #dc2626; box-shadow: 0 8px 16px rgba(239, 68, 68, 0.2); }
+
+.expense-list-card { background: #fff; border-radius: 20px; padding: 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #edf2f7; overflow: hidden; }
+.list-head { padding: 24px; border-bottom: 1px solid #edf2f7; background: #fcfdfe; }
+.list-head h3 { font-size: 0.8rem; font-weight: 800; color: #475569; margin: 0; }
+.m-table { width: 100%; border-collapse: collapse; }
+.m-table th { text-align: left; padding: 16px 24px; font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; background: #f8fafc; }
+.m-table td { padding: 16px 24px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
+.val-red { color: #ef4444; font-weight: 800; }
+.action-row { display: flex; gap: 10px; justify-content: center; }
+.b-icon { background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; color: #56a6c1; }
+.b-icon.del { color: #94a3b8; }
+.b-icon.del:hover { color: #ef4444; background: #fee2e2; }
+
+@media (max-width: 768px) {
+  .view-container { padding: 16px; }
+  .f-row { gap: 16px; }
+}
 </style>

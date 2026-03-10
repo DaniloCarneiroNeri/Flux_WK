@@ -4,7 +4,6 @@
       <div class="logo-wrapper">
         <img src="../logo.png" alt="WK Vidros" class="login-logo" />
         <h1>Bem-vindo</h1>
-        <p>Acesse sua conta para gerenciar a fábrica</p>
       </div>
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="input-group">

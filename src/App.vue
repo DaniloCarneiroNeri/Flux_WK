@@ -120,27 +120,28 @@ onMounted(() => {
 </script>
 
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-body { background-color: #f4f7f6; color: #333; overflow: hidden; position: fixed; width: 100%; height: 100%; }
-.app-layout { display: flex; height: 100vh; width: 100vw; overflow: hidden; background-color: #f4f7f6; }
-.sidebar-wrapper { flex-shrink: 0; width: 260px; height: 100%; border-right: 1px solid #e0e6ed; z-index: 1000; transition: width 0.3s ease, transform 0.3s ease; background: #ffffff; }
-.app-layout.sidebar-collapsed .sidebar-wrapper { width: 88px; }
-.content-area { flex: 1; min-width: 0; height: 100%; overflow-y: auto; background-color: #f4f7f6; position: relative; -webkit-overflow-scrolling: touch; }
-.mobile-toggle { display: none; position: fixed; top: 15px; right: 15px; width: 48px; height: 48px; background: #56a6c1; border: none; border-radius: 4px; color: #fff; font-size: 1.5rem; z-index: 1100; cursor: pointer; box-shadow: 0 4px 15px rgba(86, 166, 193, 0.3); }
-@media (max-width: 768px) {
-  .mobile-toggle { display: flex; align-items: center; justify-content: center; }
-  .sidebar-wrapper { position: fixed; left: 0; top: 0; transform: translateX(-100%); }
-  .sidebar-mobile-open .sidebar-wrapper { transform: translateX(0); }
-  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 999; }
-  .sidebar-mobile-open .sidebar-overlay { display: block; }
-  .content-area { padding-top: 60px; }
+/* CSS Global / App.vue */
+.app-layout { 
+  display: flex; 
+  height: 100vh; 
+  width: 100vw; 
+  overflow: hidden; 
 }
-.intro-overlay { position: fixed; inset: 0; background-color: #ffffff; z-index: 9999; display: flex; justify-content: center; align-items: center; }
-.typing-text { color: #56a6c1; font-family: 'Inter', sans-serif; font-size: 2.2rem; font-weight: 800; }
-.cursor { animation: blink 1s infinite; color: #56a6c1; }
-@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-.fade-leave-active { transition: opacity 1s; }
-.fade-leave-to { opacity: 0; }
-.fade-view-enter-active, .fade-view-leave-active { transition: opacity 0.3s ease; }
-.fade-view-enter-from, .fade-view-leave-to { opacity: 0; }
+
+.content-area { 
+  flex: 1; /* Isso garante que o conteúdo ocupe todo o resto da tela */
+  min-width: 0; 
+  height: 100vh; 
+  overflow-y: auto; 
+  background-color: #f8fafc; 
+}
+
+/* No mobile, o sidebar flutua sobre o conteúdo */
+@media (max-width: 768px) {
+  .sidebar-wrapper {
+    position: absolute;
+    height: 100%;
+    z-index: 1001;
+  }
+}
 </style>
