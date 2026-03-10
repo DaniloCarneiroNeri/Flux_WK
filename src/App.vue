@@ -9,7 +9,7 @@
     <transition name="fade-view" mode="out-in">
       <LoginView v-if="!isAuthenticated" @login-success="handleLoginSuccess" />
       
-      <div class="app-layout" :class="{ 'sidebar-mobile-open': isSidebarOpen, 'sidebar-collapsed': isSidebarCollapsed }" v-else>
+      <div class="app-layout" :class="{ 'sidebar-collapsed': isSidebarCollapsed, 'sidebar-mobile-open': isSidebarOpen }" v-else>
         <button class="mobile-toggle" @click="isSidebarOpen = !isSidebarOpen">
           <span v-if="!isSidebarOpen">☰</span>
           <span v-else>✕</span>
@@ -60,8 +60,8 @@ const handleNavigate = (dest) => {
   isSidebarOpen.value = false;
 };
 
-const toggleSidebarCollapse = () => {
-  isSidebarCollapsed.value = !isSidebarCollapsed.value;
+const toggleSidebarCollapse = (val) => {
+  isSidebarCollapsed.value = val;
 };
 
 const activeComponent = computed(() => {
@@ -120,28 +120,65 @@ onMounted(() => {
 </script>
 
 <style>
-/* CSS Global / App.vue */
-.app-layout { 
-  display: flex; 
-  height: 100vh; 
-  width: 100vw; 
-  overflow: hidden; 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+body { background-color: #f8fafc; color: #1e293b; overflow: hidden; position: fixed; width: 100%; height: 100%; }
+
+.app-layout { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
+
+.sidebar-wrapper { 
+  flex-shrink: 0; 
+  width: 260px; 
+  height: 100%; 
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+  z-index: 1000;
 }
+
+.sidebar-collapsed .sidebar-wrapper { width: 80px; }
 
 .content-area { 
-  flex: 1; /* Isso garante que o conteúdo ocupe todo o resto da tela */
+  flex: 1; 
   min-width: 0; 
-  height: 100vh; 
+  height: 100%; 
   overflow-y: auto; 
   background-color: #f8fafc; 
+  position: relative; 
+  padding: 0;
 }
 
-/* No mobile, o sidebar flutua sobre o conteúdo */
-@media (max-width: 768px) {
-  .sidebar-wrapper {
-    position: absolute;
-    height: 100%;
-    z-index: 1001;
-  }
+.mobile-toggle { 
+  display: none; 
+  position: fixed; 
+  top: 15px; 
+  right: 15px; 
+  width: 45px; 
+  height: 45px; 
+  background: #56a6c1; 
+  border: none; 
+  border-radius: 10px; 
+  color: #fff; 
+  font-size: 1.2rem; 
+  z-index: 1100; 
+  box-shadow: 0 4px 12px rgba(86, 166, 193, 0.3); 
 }
+
+@media (max-width: 768px) {
+  .mobile-toggle { display: flex; align-items: center; justify-content: center; }
+  .sidebar-wrapper { position: fixed; left: 0; top: 0; transform: translateX(-100%); width: 280px; }
+  .sidebar-mobile-open .sidebar-wrapper { transform: translateX(0); }
+  .sidebar-overlay { display: block; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); z-index: 999; backdrop-filter: blur(4px); }
+  .app-layout:not(.sidebar-mobile-open) .sidebar-overlay { display: none; }
+}
+
+.intro-overlay { position: fixed; inset: 0; background: #fff; z-index: 9999; display: flex; justify-content: center; align-items: center; }
+.typing-text { color: #56a6c1; font-size: 2rem; font-weight: 900; }
+.cursor { animation: blink 1s infinite; color: #56a6c1; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+.fade-leave-active { transition: opacity 0.8s; }
+.fade-leave-to { opacity: 0; }
+.fade-view-enter-active { transition: all 0.3s ease-out; }
+.fade-view-leave-active { transition: all 0.2s ease-in; }
+.fade-view-enter-from { opacity: 0; transform: translateY(10px); }
+.fade-view-leave-to { opacity: 0; transform: translateY(-10px); }
 </style>
