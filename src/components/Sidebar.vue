@@ -1,44 +1,43 @@
 <template>
-  <aside class="sidebar" :class="{ collapsed: isCollapsed }">
-    <div class="sidebar-header">
-      <img src="../logo.png" alt="WK Vidros Logo" class="sidebar-logo" />
-      <div class="collapse-toggle" @click="toggleCollapse">
-        <span class="icon">‹</span>
-      </div>
+  <aside class="modern-sidebar" :class="{ collapsed: isCollapsed }">
+    <div class="sidebar-brand">
+      <img src="../logo.png" alt="Logo" class="brand-img" />
     </div>
-    
-    <nav class="menu">
-      <div class="menu-item" @click="navigate('board')" :class="{ active: currentSelection === 'board' }">
-        <span class="icon">🗂️</span>
-        <span>Ordens de Serviço</span>
-      </div>
 
-      <div class="menu-item has-submenu" @click="toggleCadastro" :class="{ active: currentSelection.includes('register') }">
-        <div class="menu-label">
-          <div class="label-content"><span class="icon">➕</span><span>Cadastros</span></div>
-          <span class="arrow" :class="{ rotated: cadastroOpen }">▼</span>
+    <nav class="nav-menu">
+      <div class="nav-section">PRINCIPAL</div>
+      <a @click="navigate('board')" :class="{ active: currentSelection === 'board' }" class="nav-item">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-text">Quadro O.S.</span>
+      </a>
+
+      <div class="nav-section">GESTÃO</div>
+      <div class="nav-group" :class="{ open: cadastroOpen }">
+        <div class="nav-item group-trigger" @click="toggleCadastro">
+          <span class="nav-icon">📦</span>
+          <span class="nav-text">Cadastros</span>
+          <span class="nav-arrow">›</span>
+        </div>
+        <div class="nav-sub">
+          <a @click="navigate('client-register')" class="sub-item">Clientes</a>
+          <a @click="navigate('service-register')" class="sub-item">Orçamentos</a>
+          <a @click="navigate('expense-register')" class="sub-item">Despesas</a>
         </div>
       </div>
 
-      <transition name="slide">
-        <div v-if="cadastroOpen" class="submenu">
-          <div class="submenu-item" @click.stop="navigate('client-register')">Clientes</div>
-          <div class="submenu-item" @click.stop="navigate('service-register')">Orçamentos</div>
-          <div class="submenu-item" @click.stop="navigate('expense-register')">Despesas</div>
-        </div>
-      </transition>
-
-      <div class="menu-item" @click="navigate('reports')" :class="{ active: currentSelection === 'reports' }">
-        <span class="icon">📊</span>
-        <span>Relatórios</span>
-      </div>
+      <a @click="navigate('reports')" :class="{ active: currentSelection === 'reports' }" class="nav-item">
+        <span class="nav-icon">📈</span>
+        <span class="nav-text">Relatórios</span>
+      </a>
     </nav>
 
-    <div class="sidebar-footer">
-      <div class="menu-item footer-item" @click="emit('logout')">
-        <span class="icon">🚪</span>
-        <span>Sair do Sistema</span>
+    <div class="sidebar-user">
+      <div class="user-avatar">D</div>
+      <div class="user-meta">
+        <span class="u-name">Danilo Neri</span>
+        <span class="u-role">Administrador</span>
       </div>
+      <button class="btn-logout" @click="emit('logout')">✕</button>
     </div>
   </aside>
 </template>
@@ -79,36 +78,34 @@ const toggleCollapse = () => {
 </script>
 
 <style scoped>
-.sidebar { width: 100%; height: 100%; background-color: #ffffff; border-right: 1px solid #e0e6ed; color: #444; display: flex; flex-direction: column; overflow: hidden; }
-.sidebar-header { position: relative; display: flex; flex-direction: column; align-items: center; padding: 30px 20px; border-bottom: 1px solid #f0f3f7; }
-.sidebar-logo { width: 200px; height: auto; margin-bottom: 10px; object-fit: contain; transition: all 0.3s ease; }
-.sidebar.collapsed .sidebar-logo { width: 40px; height: 40px; margin-bottom: 0; }
-.brand-title { font-size: 1.2rem; font-weight: 800; letter-spacing: 2px; color: #56a6c1; }
-.sidebar.collapsed .brand-title { display: none; }
-.menu { padding: 20px 10px; flex: 1; }
-.menu-item { padding: 15px 20px; cursor: pointer; transition: all 0.2s ease-in-out; display: flex; align-items: center; color: #7f8c8d; font-weight: 500; border-radius: 8px; margin-bottom: 5px; font-size: 0.9rem; }
-.sidebar.collapsed .menu-item { justify-content: center; }
-.sidebar.collapsed .menu-item span:not(.icon) { display: none; }
-.menu-item:hover { background: #f8f9fa; color: #56a6c1; }
-.menu-item.active { background: #56a6c1; color: #fff; font-weight: 700; box-shadow: 0 4px 12px rgba(86, 166, 193, 0.2); }
-.icon { margin-right: 15px; font-size: 1.1rem; }
-.sidebar.collapsed .icon { margin-right: 0; }
-.menu-label { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-.label-content { display: flex; align-items: center; }
-.sidebar.collapsed .arrow { display: none; }
-.submenu { background-color: #f8f9fa; border-radius: 8px; margin: 5px 0; overflow: hidden; }
-.submenu-item { padding: 12px 20px 12px 55px; font-size: 0.85rem; color: #7f8c8d; cursor: pointer; transition: all 0.2s ease-in-out; }
-.submenu-item:hover { background: #e9ecef; color: #56a6c1; }
-.sidebar-footer { border-top: 1px solid #f0f3f7; padding: 15px; display: flex; align-items: center; }
-.footer-item { flex: 1; margin: 0; }
-.footer-item:hover { color: #c0392b; background: #fff5f5; }
-.sidebar.collapsed .footer-item span:not(.icon) { display: none; }
-.collapse-toggle { position: absolute; top: 25px; right: -15px; width: 30px; height: 30px; border-radius: 50%; background: #ffffff; border: 1px solid #e0e6ed; color: #56a6c1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-.collapse-toggle:hover { background: #56a6c1; color: #fff; border-color: #56a6c1; }
-.collapse-toggle .icon { margin: 0; transition: transform 0.3s ease; }
-.sidebar.collapsed .collapse-toggle .icon { transform: rotate(180deg); }
-.slide-enter-active, .slide-leave-active { transition: all 0.3s ease-out; max-height: 200px; }
-.slide-enter-from, .slide-leave-to { max-height: 0; opacity: 0; transform: translateY(-10px); }
-.arrow { font-size: 0.7rem; transition: transform 0.3s; }
-.rotated { transform: rotate(180deg); }
+.modern-sidebar { width: 260px; height: 100vh; background: #fff; border-right: 1px solid #edf2f7; display: flex; flex-direction: column; transition: 0.3s; }
+.sidebar-brand { padding: 32px 24px; text-align: center; }
+.brand-img { width: 140px; transition: 0.3s; }
+.nav-menu { flex: 1; padding: 0 16px; overflow-y: auto; }
+.nav-section { font-size: 0.65rem; font-weight: 800; color: #94a3b8; padding: 24px 12px 12px; letter-spacing: 1px; }
+.nav-item { display: flex; align-items: center; padding: 12px; border-radius: 12px; color: #475569; font-weight: 600; cursor: pointer; transition: 0.2s; margin-bottom: 4px; text-decoration: none; }
+.nav-item:hover { background: #f1f5f9; color: #56a6c1; }
+.nav-item.active { background: #56a6c1; color: #fff; }
+.nav-icon { font-size: 1.2rem; margin-right: 12px; }
+.nav-arrow { margin-left: auto; transition: 0.3s; }
+.nav-group.open .nav-arrow { transform: rotate(90deg); }
+.nav-sub { max-height: 0; overflow: hidden; transition: 0.3s; padding-left: 40px; }
+.nav-group.open .nav-sub { max-height: 200px; padding-top: 8px; padding-bottom: 8px; }
+.sub-item { display: block; padding: 8px 12px; color: #64748b; font-size: 0.9rem; border-radius: 8px; transition: 0.2s; cursor: pointer; }
+.sub-item:hover { color: #56a6c1; background: #f8fafc; }
+
+.sidebar-user { padding: 20px; border-top: 1px solid #edf2f7; display: flex; align-items: center; gap: 12px; }
+.user-avatar { width: 40px; height: 40px; background: #e2e8f0; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #56a6c1; }
+.user-meta { flex: 1; overflow: hidden; }
+.u-name { display: block; font-size: 0.85rem; font-weight: 700; color: #1e293b; white-space: nowrap; text-overflow: ellipsis; }
+.u-role { display: block; font-size: 0.7rem; color: #94a3b8; }
+.btn-logout { background: transparent; border: none; color: #cbd5e1; cursor: pointer; font-size: 1.2rem; }
+.btn-logout:hover { color: #ef4444; }
+
+@media (max-width: 1024px) {
+  .modern-sidebar { width: 80px; }
+  .nav-text, .nav-section, .nav-arrow, .user-meta { display: none; }
+  .brand-img { width: 40px; }
+  .nav-sub { display: none; }
+}
 </style>

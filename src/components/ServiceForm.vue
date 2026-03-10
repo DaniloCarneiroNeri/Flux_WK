@@ -1,83 +1,81 @@
 <template>
-  <div class="form-view-container">
-    <div class="form-header">
-      <h2>ORÇAMENTOS</h2>
-      <p>Gestão de Vendas WK Vidros</p>
-    </div>
-    <div class="form-card main-form">
-      <form @submit.prevent="save" class="flux-form">
-        <div class="top-row">
-          <div class="form-group">
-            <label>CLIENTE</label>
-            <select v-model="selectedClientId" class="modern-input" required>
-              <option :value="null" disabled>Selecione um cliente...</option>
-              <option v-for="client in clientes" :key="client.id" :value="client.id">
-                {{ client.nome }}
-              </option>
-            </select>
-          </div>
-          <div class="form-group total-box">
-             <label>VALOR TOTAL</label>
-             <div class="total-val">{{ formatCurrency(totalOrcamento) }}</div>
-          </div>
-        </div>
-        <div class="items-section">
-          <div class="items-header">ITENS DO ORÇAMENTO</div>
-          <div class="items-list">
-            <div v-if="itens.length === 0" class="empty-items">
-              <p>Nenhum item adicionado.</p>
-            </div>
-            <div v-for="(item, index) in itens" :key="index" class="item-row">
-              <input type="text" v-model="item.descricao" placeholder="Descrição do item" class="item-input desc" />
-              <input type="number" v-model.number="item.quantidade" placeholder="Qtd" class="item-input qty" />
-              <input type="number" v-model.number="item.valor" placeholder="Valor" class="item-input price" />
-              <span class="item-total">{{ formatCurrency(item.quantidade * item.valor) }}</span>
-              <button type="button" @click="removeItem(index)" class="btn-remove-item">✕</button>
-            </div>
-          </div>
-          <button type="button" class="btn-add" @click="addItem">+ ADICIONAR ITEM</button>
-        </div>
-        <div class="form-actions">
-          <button type="button" class="btn-cancel" @click="resetForm">DESCARTAR</button>
-          <button type="submit" class="btn-primary">{{ isEditing ? 'ATUALIZAR' : 'GERAR' }} ORÇAMENTO</button>
-        </div>
-      </form>
-    </div>
+  <div class="form-container">
+    <header class="form-header">
+      <div class="title-group">
+        <h2>ORÇAMENTOS</h2>
+        <p>Gere e gerencie orçamentos para a WK Vidros</p>
+      </div>
+    </header>
 
-    <div class="list-section">
-      <div class="section-header">
-        <h3>ORÇAMENTOS SALVOS</h3>
-      </div>
-      <div class="table-container">
-        <table class="modern-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>CLIENTE</th>
-              <th>DATA</th>
-              <th>TOTAL</th>
-              <th>AÇÕES</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="orc in orcamentosSalvos" :key="orc.id">
-              <td>#{{ orc.id }}</td>
-              <td>{{ getClienteNome(orc.cliente_id) }}</td>
-              <td>{{ orc.data }}</td>
-              <td class="highlight">{{ formatCurrency(orc.total) }}</td>
-              <td>
-                <div class="action-buttons">
-                  <button class="btn-action edit" @click="editOrcamento(orc)" title="Editar">✎</button>
-                  <button class="btn-action pdf" @click="downloadPDF(orc)" title="Baixar PDF">PDF</button>
-                  <button class="btn-action os" @click="gerarOS(orc)" title="Gerar O.S.">📋</button>
-                  <button class="btn-action delete" @click="deleteOrcamento(orc.id)" title="Excluir">✕</button>
+    <main class="main-layout">
+      <section class="editor-section">
+        <div class="glass-card">
+          <form @submit.prevent="save" class="modern-form">
+            <div class="form-top-grid">
+              <div class="input-wrap">
+                <label>SELECIONAR CLIENTE</label>
+                <select v-model="selectedClientId" class="m-input" required>
+                  <option :value="null" disabled>Escolha um cliente na base...</option>
+                  <option v-for="client in clientes" :key="client.id" :value="client.id">{{ client.nome }}</option>
+                </select>
+              </div>
+              <div class="total-display-card">
+                <span class="total-label">VALOR ESTIMADO</span>
+                <span class="total-amount">{{ formatCurrency(totalOrcamento) }}</span>
+              </div>
+            </div>
+
+            <div class="items-area">
+              <div class="items-header">
+                <h3>ITENS DO SERVIÇO</h3>
+                <button type="button" class="btn-add-item" @click="addItem">+ ADICIONAR</button>
+              </div>
+              
+              <div class="items-list">
+                <div v-if="itens.length === 0" class="empty-list">Nenhum item adicionado ao orçamento.</div>
+                <div v-for="(item, index) in itens" :key="index" class="item-entry">
+                  <div class="entry-main">
+                    <input type="text" v-model="item.descricao_item" placeholder="Descrição da peça ou serviço" class="m-input desc" />
+                  </div>
+                  <div class="entry-details">
+                    <input type="number" v-model.number="item.quantidade" placeholder="Qtd" class="m-input qty" />
+                    <input type="number" v-model.number="item.valor_unitario" placeholder="R$ Unit." class="m-input price" />
+                    <div class="item-subtotal">{{ formatCurrency(item.quantidade * item.valor_unitario) }}</div>
+                    <button type="button" @click="removeItem(index)" class="btn-del">✕</button>
+                  </div>
                 </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+              </div>
+            </div>
+
+            <div class="form-footer">
+              <button type="button" class="btn-secondary" @click="resetForm">DESCARTAR</button>
+              <button type="submit" class="btn-primary">{{ isEditing ? 'ATUALIZAR' : 'SALVAR' }} ORÇAMENTO</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="history-section">
+        <div class="section-title">
+          <h3>ORÇAMENTOS RECENTES</h3>
+        </div>
+        <div class="history-grid">
+          <div v-for="orc in orcamentosSalvos" :key="orc.id" class="history-card">
+            <div class="h-card-info">
+              <span class="h-id">#{{ orc.id }}</span>
+              <span class="h-date">{{ orc.data }}</span>
+            </div>
+            <h4 class="h-client">{{ getClienteNome(orc.cliente_id) }}</h4>
+            <div class="h-total">{{ formatCurrency(orc.total || orc.valor_total) }}</div>
+            <div class="h-actions">
+              <button @click="editOrcamento(orc)" class="h-btn">✎ Editar</button>
+              <button @click="downloadPDF(orc)" class="h-btn pdf">PDF</button>
+              <button @click="gerarOS(orc)" class="h-btn os">📋 Gerar OS</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
   </div>
 </template>
 
@@ -194,33 +192,39 @@ const gerarOS = async (orc) => {
 </script>
 
 <style scoped>
-.form-view-container { padding: 30px; background: #f4f7f6; }
-.form-header { margin-bottom: 25px; }
-.form-header h2 { color: #2d3436; font-size: 1.5rem; font-weight: 900; }
-.form-header p { color: #95a5a6; font-size: 0.9rem; }
-.main-form { background: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 30px; border-left: 5px solid #56a6c1; }
-.top-row { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
-.total-val { font-size: 2rem; font-weight: 900; color: #56a6c1; }
-.items-section { margin: 25px 0; border: 1px solid #e0e6ed; border-radius: 8px; background: #fcfdfe; }
-.items-header { background: #f8f9fa; padding: 15px; font-size: 0.75rem; font-weight: 800; color: #7f8c8d; border-bottom: 1px solid #e0e6ed; }
-.item-row { display: grid; grid-template-columns: 3fr 1fr 1fr 1fr auto; gap: 12px; padding: 15px; border-bottom: 1px solid #f0f3f7; align-items: center; }
-.item-input { background: #fff; border: 1px solid #e0e6ed; padding: 10px; border-radius: 6px; width: 100%; outline: none; }
-.item-input:focus { border-color: #56a6c1; }
-.btn-add { width: 100%; border: none; color: #56a6c1; padding: 15px; font-weight: 800; cursor: pointer; background: transparent; }
-.form-actions { display: flex; justify-content: flex-end; gap: 15px; margin-top: 25px; }
-.btn-primary { background: #56a6c1; color: #fff; border: none; padding: 14px 30px; font-weight: 900; border-radius: 6px; cursor: pointer; }
-.btn-cancel { background: #f1f2f6; color: #7f8c8d; border: none; padding: 14px 30px; border-radius: 6px; cursor: pointer; }
-.list-section { background: #fff; border-radius: 8px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
-.modern-table { width: 100%; border-collapse: collapse; }
-.modern-table th { text-align: left; padding: 15px; color: #95a5a6; border-bottom: 1px solid #f0f3f7; font-size: 0.7rem; text-transform: uppercase; }
-.modern-table td { padding: 15px; border-bottom: 1px solid #f8f9fa; color: #2d3436; }
-.highlight { color: #56a6c1; font-weight: 800; }
-.action-buttons { display: flex; gap: 8px; }
-.btn-action { background: #f8f9fa; border: 1px solid #e0e6ed; color: #56a6c1; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold; }
-.btn-action:hover { background: #56a6c1; color: #fff; }
+.form-container { padding: 30px; background: #f1f5f9; min-height: 100vh; }
+.form-header { margin-bottom: 30px; }
+.title-group h2 { color: #0f172a; font-weight: 900; margin: 0; }
+.title-group p { color: #64748b; font-size: 0.9rem; }
 
-.form-group { display: flex; flex-direction: column; gap: 8px; }
-.form-group label { font-size: 0.7rem; color: #7f8c8d; font-weight: 700; text-transform: uppercase; }
-.modern-input { background: #f8f9fa; border: 1px solid #e0e6ed; color: #333; padding: 14px; border-radius: 6px; width: 100%; outline: none; transition: border-color 0.2s; }
-.modern-input:focus { border-color: #56a6c1; background: #fff; }
+.main-layout { display: flex; flex-direction: column; gap: 30px; }
+.glass-card { background: #fff; padding: 32px; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 10px 15px -3px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.7); }
+
+.form-top-grid { display: grid; grid-template-columns: 2fr 1.2fr; gap: 24px; margin-bottom: 32px; }
+.total-display-card { background: #f8fafc; padding: 20px; border-radius: 16px; display: flex; flex-direction: column; align-items: flex-end; border: 2px solid #56a6c1; }
+.total-label { font-size: 0.7rem; font-weight: 800; color: #56a6c1; }
+.total-amount { font-size: 2.2rem; font-weight: 950; color: #1e293b; line-height: 1; }
+
+.items-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.items-header h3 { font-size: 0.8rem; font-weight: 800; color: #475569; }
+.btn-add-item { background: #f1f5f9; color: #56a6c1; border: 1px dashed #56a6c1; padding: 8px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+
+.item-entry { display: grid; grid-template-columns: 1fr; gap: 12px; padding: 16px; background: #f8fafc; border-radius: 12px; margin-bottom: 12px; }
+.entry-details { display: grid; grid-template-columns: 1fr 1.5fr 1fr auto; gap: 12px; align-items: center; }
+.item-subtotal { font-weight: 800; color: #56a6c1; text-align: right; }
+
+.history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+.history-card { background: #fff; padding: 20px; border-radius: 16px; border-bottom: 4px solid #e2e8f0; }
+.h-card-info { display: flex; justify-content: space-between; font-size: 0.75rem; color: #94a3b8; font-weight: 700; margin-bottom: 8px; }
+.h-client { margin: 0 0 12px 0; color: #1e293b; }
+.h-total { font-size: 1.4rem; font-weight: 900; color: #56a6c1; margin-bottom: 16px; }
+.h-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.h-btn { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; font-size: 0.75rem; font-weight: 700; color: #64748b; }
+
+@media (max-width: 768px) {
+  .form-top-grid { grid-template-columns: 1fr; }
+  .total-display-card { align-items: center; }
+  .entry-details { grid-template-columns: 1fr 1fr; }
+  .item-subtotal { grid-column: span 2; text-align: center; font-size: 1.2rem; }
+}
 </style>
