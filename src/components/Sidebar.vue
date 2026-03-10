@@ -37,7 +37,7 @@
     <div class="sidebar-user">
       <div class="user-avatar">D</div>
       <div class="user-meta">
-        <span class="u-name">Danilo Neri</span>
+        <span class="u-name">Lucas Abraão</span>
         <button class="btn-logout-text" @click="emit('logout')">Sair do sistema</button>
       </div>
     </div>
