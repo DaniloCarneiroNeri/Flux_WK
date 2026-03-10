@@ -59,11 +59,11 @@
             <table class="modern-grid">
               <thead>
                 <tr>
-                  <th>ID</th>
+                  <th>O.S.</th>
                   <th>CLIENTE</th>
-                  <th>VALOR</th>
+                  <th>VALOR TOTAL</th>
                   <th>STATUS</th>
-                  <th>AÇÕES</th>
+                  <th class="text-right">AÇÕES</th>
                 </tr>
               </thead>
               <tbody>
@@ -72,7 +72,9 @@
                   <td>{{ order.clientes.nome }}</td>
                   <td class="price-col">{{ formatCurrency(order.valor_total) }}</td>
                   <td><span class="status-tag" :class="order.status">{{ getStatusLabel(order.status) }}</span></td>
-                  <td><button class="btn-edit-small" @click="openModal(order)">Detalhes</button></td>
+                  <td class="text-right">
+                    <button class="btn-edit-small" @click="openModal(order)">ABRIR DETALHES</button>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -83,12 +85,16 @@
 
     <transition name="modal">
       <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
-        <div class="modal-card">
+        <div class="modal-card os-details">
           <div class="modal-header">
-            <h3>{{ isEditing ? `Editar O.S. #${form.id}` : 'Nova Ordem de Serviço' }}</h3>
+            <div class="header-title">
+              <span class="os-id-badge">O.S. #{{ form.id || 'NOVA' }}</span>
+              <h3>{{ isEditing ? 'Detalhes do Serviço' : 'Nova Ordem de Serviço' }}</h3>
+            </div>
             <button class="close-x" @click="closeModal">×</button>
           </div>
-          <div class="modal-body">
+          
+          <div class="modal-body scrollable">
             <div class="form-grid">
               <div class="field-group">
                 <label>CLIENTE</label>
@@ -97,7 +103,7 @@
                 </select>
               </div>
               <div class="field-group">
-                <label>STATUS</label>
+                <label>STATUS DA PRODUÇÃO</label>
                 <select v-model="form.status" class="custom-input" :disabled="isLocked">
                   <option value="pending">Pendente</option>
                   <option value="production">Em Produção</option>
@@ -105,15 +111,48 @@
                   <option value="billed">NFe Emitida</option>
                 </select>
               </div>
+
+              <div class="items-summary-section full-width">
+                <div class="section-title">ITENS E MEDIÇÕES</div>
+                <div class="items-list-box">
+                  <div v-if="form.items.length === 0" class="empty-items">Nenhum item registrado nesta O.S.</div>
+                  <div v-for="(item, idx) in form.items" :key="idx" class="os-item-row">
+                    <div class="item-desc">
+                      <span class="qty">{{ item.quantidade }}x</span>
+                      <span class="name">{{ item.descricao_item }}</span>
+                    </div>
+                    <div class="item-val">{{ formatCurrency(item.valor_unitario * item.quantidade) }}</div>
+                  </div>
+                </div>
+              </div>
+
               <div class="field-group full-width">
-                <label>OBSERVAÇÕES</label>
+                <label>OBSERVAÇÕES DE FÁBRICA</label>
                 <textarea v-model="form.observacoes" class="custom-input" rows="3" :disabled="isLocked"></textarea>
               </div>
             </div>
+
+            <div class="os-financial-footer">
+              <div class="fin-block">
+                <span>SUBTOTAL</span>
+                <strong>{{ formatCurrency(subtotalItems) }}</strong>
+              </div>
+              <div class="fin-block">
+                <span>DESCONTO</span>
+                <input type="number" v-model.number="form.desconto" class="mini-input" :disabled="isLocked" />
+              </div>
+              <div class="fin-block total">
+                <span>TOTAL FINAL</span>
+                <strong>{{ formatCurrency(form.valor_total) }}</strong>
+              </div>
+            </div>
           </div>
+
           <div class="modal-footer">
-            <button class="btn-sec" @click="closeModal">CANCELAR</button>
-            <button class="btn-pri" @click="saveOrder" :disabled="saving">{{ saving ? 'SALVANDO...' : 'SALVAR' }}</button>
+            <button class="btn-sec" @click="closeModal">FECHAR</button>
+            <button class="btn-pri" @click="saveOrder" :disabled="saving || isLocked">
+              {{ saving ? 'SALVANDO...' : 'ATUALIZAR O.S.' }}
+            </button>
           </div>
         </div>
       </div>
@@ -137,9 +176,6 @@
 <script setup>
 import { ref, computed, watch, onMounted, reactive } from 'vue';
 import { api } from '../services/api';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import logoImg from '../logo.png';
 
 const viewMode = ref('kanban');
 const ordens = ref([]);
@@ -225,7 +261,7 @@ const openModal = (order = null) => {
   if (order) {
     isEditing.value = true;
     form.value = JSON.parse(JSON.stringify(order));
-    form.value.items = form.value.itens_ordem || [];
+    form.value.items = form.value.itens_ordem || form.value.items || [];
     form.value.desconto = form.value.desconto || 0;
   } else {
     isEditing.value = false;
@@ -312,31 +348,38 @@ const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'curre
 .total-price { color: #56a6c1; font-weight: 900; font-size: 1.1rem; }
 .icon-drag { color: #e2e8f0; font-size: 1.2rem; }
 
-.table-view-wrapper { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #edf2f7; }
-.modern-grid { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.table-view-wrapper { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #edf2f7; }
+.modern-grid { width: 100%; border-collapse: collapse; }
 .modern-grid th { text-align: left; padding: 16px; color: #94a3b8; font-size: 0.75rem; border-bottom: 1px solid #f1f5f9; text-transform: uppercase; font-weight: 800; }
 .modern-grid td { padding: 16px; border-bottom: 1px solid #f8fafc; font-size: 0.9rem; color: #1e293b; }
 .row-hover:hover { background-color: #f8fafc; }
-.status-tag { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 800; }
+.status-tag { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 800; }
 .status-tag.pending { background: #fef3c7; color: #d97706; }
 .status-tag.production { background: #e0f2fe; color: #0284c7; }
 .status-tag.completed { background: #dcfce7; color: #16a34a; }
 .status-tag.billed { background: #f3e8ff; color: #9333ea; }
-.btn-edit-small { background: #f1f5f9; border: none; padding: 6px 12px; border-radius: 6px; color: #56a6c1; font-weight: 700; cursor: pointer; }
+.btn-edit-small { background: #56a6c1; border: none; padding: 8px 16px; border-radius: 8px; color: #fff; font-weight: 800; cursor: pointer; font-size: 0.7rem; }
+.text-right { text-align: right; }
 
-.custom-alert-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); z-index: 2000; display: flex; align-items: center; justify-content: center; }
-.alert-box { background: #fff; padding: 32px; border-radius: 24px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
-.alert-icon { width: 50px; height: 50px; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; }
-.success .alert-icon { background: #dcfce7; color: #16a34a; }
-.error .alert-icon { background: #fee2e2; color: #ef4444; }
-.alert-content h4 { font-size: 1.2rem; color: #1e293b; margin-bottom: 10px; }
-.alert-content p { color: #64748b; margin-bottom: 24px; line-height: 1.5; }
-.btn-close-alert { width: 100%; background: #1e293b; color: #fff; border: none; padding: 12px; border-radius: 12px; font-weight: 800; cursor: pointer; }
+.modal-card.os-details { max-width: 650px; }
+.header-title { display: flex; align-items: center; gap: 12px; }
+.os-id-badge { background: #f1f5f9; color: #56a6c1; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 900; }
+.items-summary-section { margin: 20px 0; background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; }
+.section-title { font-size: 0.7rem; font-weight: 900; color: #94a3b8; margin-bottom: 15px; letter-spacing: 1px; }
+.os-item-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+.item-desc { display: flex; gap: 10px; font-size: 0.9rem; }
+.qty { color: #56a6c1; font-weight: 900; }
+.name { color: #1e293b; font-weight: 600; }
+.item-val { font-weight: 800; color: #64748b; font-size: 0.9rem; }
+.os-financial-footer { display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 20px; margin-top: 30px; padding-top: 20px; border-top: 2px solid #f1f5f9; }
+.fin-block { display: flex; flex-direction: column; gap: 5px; }
+.fin-block span { font-size: 0.65rem; font-weight: 800; color: #94a3b8; }
+.fin-block strong { font-size: 1.1rem; color: #1e293b; }
+.fin-block.total strong { color: #56a6c1; font-size: 1.4rem; font-weight: 950; }
+.mini-input { background: #fff; border: 1px solid #cbd5e1; padding: 8px; border-radius: 8px; font-weight: 800; color: #ef4444; width: 100px; }
 
 @media (max-width: 768px) {
-  .board-header { flex-direction: column; align-items: stretch; }
-  .header-controls { justify-content: space-between; }
-  .kanban-container { gap: 15px; }
-  .kanban-column { min-width: 85vw; }
+  .os-financial-footer { grid-template-columns: 1fr; gap: 15px; }
+  .modern-grid th:nth-child(3), .modern-grid td:nth-child(3) { display: none; }
 }
 </style>
