@@ -115,13 +115,22 @@
               <div class="items-summary-section full-width">
                 <div class="section-title">ITENS E MEDIÇÕES</div>
                 <div class="items-list-box">
-                  <div v-if="form.items.length === 0" class="empty-items">Nenhum item registrado nesta O.S.</div>
+                  <div v-if="form.items.length === 0 && !form.desconto" class="empty-items">Nenhum item registrado nesta O.S.</div>
+                  
                   <div v-for="(item, idx) in form.items" :key="idx" class="os-item-row">
                     <div class="item-desc">
                       <span class="qty">{{ item.quantidade }}x</span>
                       <span class="name">{{ item.descricao_item }}</span>
                     </div>
                     <div class="item-val">{{ formatCurrency(item.valor_unitario * item.quantidade) }}</div>
+                  </div>
+
+                  <div v-if="form.desconto > 0" class="os-item-row discount-line">
+                    <div class="item-desc">
+                      <span class="qty">-</span>
+                      <span class="name">Desconto Aplicado</span>
+                    </div>
+                    <div class="item-val text-discount">{{ formatCurrency(-form.desconto) }}</div>
                   </div>
                 </div>
               </div>
@@ -284,7 +293,12 @@ const closeModal = () => { showModal.value = false; form.value = null; };
 const saveOrder = async () => {
   saving.value = true;
   try {
-    const payload = { ...form.value };
+    const payload = { 
+      ...form.value,
+      desconto: parseFloat(form.value.desconto) || 0,
+      itens_ordem: form.value.items
+    };
+    
     if (isEditing.value) {
       await api.put(`/ordens/${form.value.id}`, payload);
     } else {
@@ -468,6 +482,9 @@ const emitReceipt = () => {
 .alert-content h4 { font-size: 1.2rem; color: #1e293b; margin-bottom: 10px; }
 .alert-content p { color: #64748b; margin-bottom: 24px; line-height: 1.5; }
 .btn-close-alert { width: 100%; background: #1e293b; color: #fff; border: none; padding: 12px; border-radius: 12px; font-weight: 800; cursor: pointer; }
+
+.discount-line { border-top: 1px dashed #e2e8f0; margin-top: 5px; }
+.text-discount { color: #ef4444 !important; font-weight: 900; }
 
 @media (max-width: 768px) {
   .modal-footer { flex-direction: column; height: auto; padding: 16px; gap: 16px; }
