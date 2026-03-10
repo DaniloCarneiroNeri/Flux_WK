@@ -77,7 +77,11 @@ const editingId = ref(null);
 const form = ref({ descricao: '', valor: null, categoria: 'Outros', data: new Date().toISOString().split('T')[0], fixa: false });
 
 const loadExpenses = async () => {
-  expenses.value = await api.get('/despesas');
+  try {
+    expenses.value = await api.get('/despesas');
+  } catch (e) {
+    console.error(e);
+  }
 };
 
 onMounted(loadExpenses);
@@ -98,9 +102,19 @@ const save = async () => {
 
 const deleteExpense = async (id) => {
   if (confirm('Excluir despesa?')) {
-    await api.delete(`/despesas/${id}`);
-    await loadExpenses();
+    try {
+      await api.delete(`/despesas/${id}`);
+      await loadExpenses();
+    } catch (e) {
+      alert(e.message);
+    }
   }
+};
+
+const editExpense = (expense) => {
+  isEditing.value = true;
+  editingId.value = expense.id;
+  form.value = { ...expense, data: expense.data_cadastro || expense.data };
 };
 </script>
 

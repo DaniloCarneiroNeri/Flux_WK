@@ -71,29 +71,50 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import demoData from '../data/demoData.json';
+import { ref, onMounted } from 'vue';
+import { api } from '../services/api';
 
-const clientes = ref(demoData.clientes);
+const clientes = ref([]);
 const form = ref(null);
+
+const loadClientes = async () => {
+  try {
+    clientes.value = await api.get('/clientes');
+  } catch (e) {
+    alert("Erro ao carregar clientes: " + e.message);
+  }
+};
+
+onMounted(loadClientes);
 
 const showNewForm = () => { form.value = { id: null, nome: '', documento: '', telefone: '', endereco: '' }; };
 const cancelForm = () => { form.value = null; };
 const editClient = (cliente) => { form.value = { ...cliente }; };
 
-const handleSubmit = () => {
-  if (form.value.id) {
-    const index = clientes.value.findIndex(c => c.id === form.value.id);
-    if (index !== -1) clientes.value[index] = { ...form.value };
-  } else {
-    clientes.value.unshift({ ...form.value, id: Date.now() });
+const handleSubmit = async () => {
+  try {
+    if (form.value.id) {
+      await api.put(`/clientes/${form.value.id}`, form.value);
+    } else {
+      await api.post('/clientes', form.value);
+    }
+    await loadClientes();
+    form.value = null;
+  } catch (e) {
+    alert(e.message);
   }
-  form.value = null;
 };
 
-const deleteClient = (id) => {
-  clientes.value = clientes.value.filter(c => c.id !== id);
-  if (form.value && form.value.id === id) form.value = null;
+const deleteClient = async (id) => {
+  if (confirm('Excluir este cliente?')) {
+    try {
+      await api.delete(`/clientes/${id}`);
+      await loadClientes();
+      if (form.value && form.value.id === id) form.value = null;
+    } catch (e) {
+      alert(e.message);
+    }
+  }
 };
 </script>
 

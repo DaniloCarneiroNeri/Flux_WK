@@ -114,9 +114,13 @@ def delete_servico(service_id: int):
 # --- ROTAS DE ORDENS DE SERVIÇO ---
 @router.get("/ordens")
 def get_ordens():
-    response = supabase.table("ordens_servico").select("*, clientes(nome), itens_ordem(*)").order("data_abertura", desc=True).execute()
-    return response.data
-
+    try:
+        response = supabase.table("ordens_servico").select("*, clientes(nome), itens_ordem(*)").order("data_abertura", desc=True).execute()
+        return response.data
+    except Exception as e:
+        print(f"Erro Supabase: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar ordens: {str(e)}")
+    
 @router.post("/ordens")
 def create_ordem(ordem: OrdemServicoCreate):
     try:
@@ -198,14 +202,19 @@ def update_status(order_id: int, status_data: OrdemStatusUpdate):
 # --- ROTAS DE ORÇAMENTOS ---
 @router.get("/orcamentos")
 def get_orcamentos():
-    response = supabase.table("orcamentos").select("*, clientes(nome)").order("id", desc=True).execute()
-    if response.data is None:
-        return []
-    # Remapeia o campo 'items' para 'itens_orcamento' para manter a compatibilidade com o frontend
-    for item in response.data:
-        if 'items' in item and item['items'] is not None:
-            item['itens_orcamento'] = item['items']
-    return response.data
+    try:
+        response = supabase.table("orcamentos").select("*, clientes(nome)").order("id", desc=True).execute()
+        if response.data is None:
+            return []
+        
+        data = response.data
+        for item in data:
+            if 'items' in item and item['items'] is not None:
+                item['itens_orcamento'] = item['items']
+        return data
+    except Exception as e:
+        print(f"Erro Supabase: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar orçamentos: {str(e)}")
 
 @router.post("/orcamentos")
 def create_orcamento(orcamento: OrcamentoBody):

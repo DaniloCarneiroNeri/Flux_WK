@@ -96,12 +96,16 @@ const isEditing = ref(false);
 const editingId = ref(null);
 
 const loadData = async () => {
-  const [resClientes, resOrcamentos] = await Promise.all([
-    api.get('/clientes'),
-    api.get('/orcamentos')
-  ]);
-  clientes.value = resClientes;
-  orcamentosSalvos.value = resOrcamentos;
+  try {
+    const [resClientes, resOrcamentos] = await Promise.all([
+      api.get('/clientes'),
+      api.get('/orcamentos')
+    ]);
+    clientes.value = resClientes;
+    orcamentosSalvos.value = resOrcamentos;
+  } catch (e) {
+    console.error(e);
+  }
 };
 
 onMounted(loadData);
@@ -119,7 +123,11 @@ const save = async () => {
     const payload = {
       cliente_id: selectedClientId.value,
       valor_total: totalOrcamento.value,
-      items: itens.value
+      items: itens.value.map(i => ({
+        descricao_item: i.descricao_item || i.descricao,
+        quantidade: i.quantidade,
+        valor_unitario: i.valor_unitario || i.valor
+      }))
     };
     if (isEditing.value) {
       await api.put(`/orcamentos/${editingId.value}`, payload);
@@ -144,7 +152,7 @@ const editOrcamento = (orc) => {
   isEditing.value = true;
   editingId.value = orc.id;
   selectedClientId.value = orc.cliente_id;
-  itens.value = JSON.parse(JSON.stringify(orc.itens_orcamento || []));
+  itens.value = JSON.parse(JSON.stringify(orc.itens_orcamento || orc.items || []));
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
@@ -153,7 +161,14 @@ const downloadPDF = (orc) => {
   const cliente = clientes.value.find(c => c.id === orc.cliente_id) || { nome: '' };
   doc.setDrawColor(0); doc.setLineWidth(0.3); doc.rect(10, 10, 190, 38); doc.addImage(logoImg, 'JPG', 25, 12, 45, 33);
   doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.text('W&K vidros', 140, 20, { align: 'center' });
-  const tableRows = orc.itens_orcamento.map(item => [item.quantidade, '', item.descricao_item, item.valor_unitario.toFixed(2), (item.quantidade * item.valor_unitario).toFixed(2)]);
+  const itemsSource = orc.itens_orcamento || orc.items || [];
+  const tableRows = itemsSource.map(item => [
+    item.quantidade, 
+    '', 
+    item.descricao_item || item.descricao, 
+    (item.valor_unitario || item.valor).toFixed(2), 
+    (item.quantidade * (item.valor_unitario || item.valor)).toFixed(2)
+  ]);
   autoTable(doc, { startY: 80, head: [['Quant.', 'Unid.', 'Descrição', 'Unitário', 'Total']], body: tableRows, theme: 'grid' });
   doc.save(`Orcamento_WK_${orc.id}.pdf`);
 };
@@ -162,9 +177,13 @@ const gerarOS = async (orc) => {
   try {
     const payload = {
       cliente_id: orc.cliente_id,
-      valor_total: orc.valor_total,
+      valor_total: orc.valor_total || orc.total,
       status: 'pending',
-      items: orc.itens_orcamento
+      items: (orc.itens_orcamento || orc.items).map(i => ({
+        descricao_item: i.descricao_item || i.descricao,
+        quantidade: i.quantidade,
+        valor_unitario: i.valor_unitario || i.valor
+      }))
     };
     await api.post('/ordens', payload);
     alert('Ordem de Serviço gerada com sucesso!');
