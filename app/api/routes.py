@@ -128,23 +128,21 @@ def get_ordens():
 @router.post("/ordens")
 def create_ordem(ordem: OrdemServicoCreate):
     try:
-        order_data = {
-            "cliente_id": ordem.cliente_id,
-            "valor_total": ordem.valor_total,
-            "observacoes": ordem.observacoes,
-            "status": ordem.status
-        }
+        order_data = ordem.dict()
+        order_data.pop("id", None)
+        items = order_data.pop("items", [])
+        
         res_ordem = supabase.table("ordens_servico").insert(order_data).execute()
         if not res_ordem.data:
             raise HTTPException(status_code=500, detail="Erro ao criar ordem")
             
         new_order_id = res_ordem.data[0]['id']
 
-        if ordem.items:
-            items_data = [
-                {"ordem_id": new_order_id, **item.model_dump()}
-                for item in ordem.items
-            ]
+        if items:
+            items_data = []
+            for item in items:
+                item.pop("id", None)
+                items_data.append({"ordem_id": new_order_id, **item})
             supabase.table("itens_ordem").insert(items_data).execute()
 
         return {"message": "Ordem criada", "id": new_order_id}
@@ -273,18 +271,20 @@ def patch_orcamento(orcamento_id: int, orcamento_update: OrcamentoUpdate):
 # --- DESPESAS ---
 @router.post("/despesas")
 def criar_despesa(despesa: DespesaCreate):
-    dados = {
+    try:
+        dados = {
             "descricao": despesa.descricao,
             "valor": despesa.valor,
-            "tipo": despesa.categoria, 
+            "tipo": despesa.categoria if hasattr(despesa, 'categoria') else "Outros", 
             "data_cadastro": despesa.data,
-            "data_vencimento": None,
             "fixa": despesa.fixa
         }
-    response = supabase.table("despesas").insert(dados).execute()
-    if not response.data:
-        raise HTTPException(status_code=400, detail="Erro ao salvar despesa")
-    return response.data[0]
+        response = supabase.table("despesas").insert(dados).execute()
+        if not response.data:
+            raise HTTPException(status_code=400, detail="Erro ao salvar despesa")
+        return response.data[0]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/despesas")
 def listar_despesas():
