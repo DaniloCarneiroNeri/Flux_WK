@@ -68,24 +68,40 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import demoData from '../data/demoData.json';
-const expenses = ref(demoData.despesas || []);
+import { ref, onMounted } from 'vue';
+import { api } from '../services/api';
+
+const expenses = ref([]);
 const isEditing = ref(false);
 const editingId = ref(null);
-const form = ref({ descricao: '', valor: null, vencimento: '' });
-const formatCurrency = (value) => { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0); };
-const formatDate = (dateStr) => { if (!dateStr) return ''; const [year, month, day] = dateStr.split('-'); return `${day}/${month}/${year}`; };
-const resetForm = () => { form.value = { descricao: '', valor: null, vencimento: '' }; isEditing.value = false; editingId.value = null; };
+const form = ref({ descricao: '', valor: null, categoria: 'Outros', data: new Date().toISOString().split('T')[0], fixa: false });
 
-const save = () => {
-  if (isEditing.value) { const index = expenses.value.findIndex(e => e.id === editingId.value); if (index !== -1) expenses.value[index] = { ...form.value, id: editingId.value }; }
-  else { expenses.value.unshift({ ...form.value, id: Date.now() }); }
-  resetForm();
+const loadExpenses = async () => {
+  expenses.value = await api.get('/despesas');
 };
 
-const editExpense = (expense) => { isEditing.value = true; editingId.value = expense.id; form.value = { ...expense }; window.scrollTo({ top: 0, behavior: 'smooth' }); };
-const deleteExpense = (id) => { if (confirm('Deseja realmente excluir esta despesa?')) expenses.value = expenses.value.filter(e => e.id !== id); };
+onMounted(loadExpenses);
+
+const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+const formatDate = (dateStr) => { if (!dateStr) return ''; const [year, month, day] = dateStr.split('T')[0].split('-'); return `${day}/${month}/${year}`; };
+const resetForm = () => { form.value = { descricao: '', valor: null, categoria: 'Outros', data: new Date().toISOString().split('T')[0], fixa: false }; isEditing.value = false; editingId.value = null; };
+
+const save = async () => {
+  try {
+    await api.post('/despesas', form.value);
+    await loadExpenses();
+    resetForm();
+  } catch (e) {
+    alert(e.message);
+  }
+};
+
+const deleteExpense = async (id) => {
+  if (confirm('Excluir despesa?')) {
+    await api.delete(`/despesas/${id}`);
+    await loadExpenses();
+  }
+};
 </script>
 
 <style scoped>

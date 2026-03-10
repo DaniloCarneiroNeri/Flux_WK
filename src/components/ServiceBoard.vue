@@ -168,15 +168,31 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
-import demoData from '../data/demoData.json';
+import { ref, computed, watch, onMounted } from 'vue';
+import { api } from '../services/api';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoImg from '../logo.png';
 
 const viewMode = ref('kanban');
-const ordens = ref(demoData.ordens);
+const ordens = ref([]);
 const draggedOrder = ref(null);
+const showModal = ref(false);
+const isEditing = ref(false);
+const saving = ref(false);
+const form = ref(null);
+const dbClients = ref([]);
+
+const loadData = async () => {
+  const [resOrdens, resClientes] = await Promise.all([
+    api.get('/ordens'),
+    api.get('/clientes')
+  ]);
+  ordens.value = resOrdens;
+  dbClients.value = resClientes;
+};
+
+onMounted(loadData);
 
 const columns = computed(() => {
   const statusMap = {
@@ -189,9 +205,7 @@ const columns = computed(() => {
 
   const grouped = ordens.value.reduce((acc, order) => {
     const status = statusMap[order.status] || 'Pendente';
-    if (!acc[status]) {
-      acc[status] = [];
-    }
+    if (!acc[status]) acc[status] = [];
     acc[status].push(order);
     return acc;
   }, {});
@@ -203,19 +217,6 @@ const columns = computed(() => {
     { title: 'Concluído', orders: grouped['Concluído'] || [], color: '#2ecc71' }
   ];
 });
-
-const showModal = ref(false);
-const isEditing = ref(false);
-const saving = ref(false);
-const form = ref(null);
-const dbClients = ref(demoData.clientes);
-
-const statusOptions = [
-  { key: 'pending', label: 'Pendente' },
-  { key: 'production', label: 'Em Produção' },
-  { key: 'billed', label: 'NFe Emitida' },
-  { key: 'completed', label: 'Concluído' }
-];
 
 const subtotalItems = computed(() => {
   if (!form.value || !form.value.items) return 0;
@@ -238,123 +239,84 @@ const openModal = (order = null) => {
     form.value.desconto = form.value.desconto || 0;
   } else {
     isEditing.value = false;
-    form.value = { 
-      id: null, 
-      cliente_id: "", 
-      status: 'pending', 
-      observacoes: '', 
-      items: [], 
-      desconto: 0,
-      valor_total: 0 
-    };
+    form.value = { id: null, cliente_id: "", status: 'pending', observacoes: '', items: [], desconto: 0, valor_total: 0 };
   }
   showModal.value = true;
 };
 
 const closeModal = () => { showModal.value = false; form.value = null; };
 
-const saveOrder = () => {
+const saveOrder = async () => {
   saving.value = true;
-  const client = dbClients.value.find(c => c.id === form.value.cliente_id);
-  if (isEditing.value) {
-    const index = ordens.value.findIndex(o => o.id === form.value.id);
-    if (index !== -1) {
-      const updatedOrder = { ...form.value, clientes: { nome: client?.nome || 'N/A' }, itens_ordem: form.value.items };
-      delete updatedOrder.items;
-      ordens.value[index] = updatedOrder;
+  try {
+    const payload = { ...form.value };
+    if (isEditing.value) {
+      await api.put(`/ordens/${form.value.id}`, payload);
+    } else {
+      await api.post('/ordens', payload);
     }
-  } else {
-    const newOrder = { ...form.value, id: Date.now(), clientes: { nome: client?.nome || 'N/A' }, itens_ordem: form.value.items };
-    delete newOrder.items;
-    ordens.value.unshift(newOrder);
+    await loadData();
+    closeModal();
+  } catch (e) {
+    alert(e.message);
+  } finally {
+    saving.value = false;
   }
-  setTimeout(() => { saving.value = false; closeModal(); }, 500);
 };
 
-const addItem = () => { 
-  if (isLocked.value) return; 
-  form.value.items.push({ descricao_item: '', quantidade: 1, valor_unitario: 0 }); 
+const onDragStart = (order) => { draggedOrder.value = order; };
+
+const onDrop = async (targetColumnTitle) => {
+  if (!draggedOrder.value) return;
+  const titleToStatus = { 'Pendente': 'pending', 'Em Produção': 'production', 'Concluído': 'completed', 'NFe Emitida': 'billed' };
+  const newStatus = titleToStatus[targetColumnTitle];
+  try {
+    await api.patch(`/ordens/${draggedOrder.value.id}/status`, { status: newStatus });
+    await loadData();
+  } catch (e) {
+    alert(e.message);
+  }
+  draggedOrder.value = null;
 };
 
-const removeItem = (index) => { 
-  if (isLocked.value) return; 
-  form.value.items.splice(index, 1); 
-};
-
-const formatCurrency = (value) => { 
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0); 
-};
+const addItem = () => { if (!isLocked.value) form.value.items.push({ descricao_item: '', quantidade: 1, valor_unitario: 0 }); };
+const removeItem = (index) => { if (!isLocked.value) form.value.items.splice(index, 1); };
+const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 
 const emitReceipt = () => {
   const doc = new jsPDF();
-  const client = dbClients.value.find(c => c.id === form.value.cliente_id) || { nome: 'Consumidor', documento: '', telefone: '' };
+  const client = dbClients.value.find(c => c.id === form.value.cliente_id) || { nome: 'Consumidor' };
   const dateStr = new Date().toLocaleDateString('pt-BR');
-
   doc.setDrawColor(86, 166, 193);
   doc.setLineWidth(0.5);
   doc.rect(10, 10, 190, 40);
   doc.addImage(logoImg, 'PNG', 15, 15, 35, 30);
-  
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇO', 60, 25);
-  
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text('WK VIDROS - Forros e PVC', 60, 32);
   doc.text('CNPJ: 55.952.245/0001-00', 60, 37);
   doc.text('Avenida 21 de Abril - Telefone: (62) 99876-6290', 60, 42);
-
   doc.setFont('helvetica', 'bold');
   doc.text('DADOS DO CLIENTE', 10, 60);
   doc.line(10, 62, 200, 62);
-  
   doc.setFont('helvetica', 'normal');
   doc.text(`NOME: ${client.nome}`, 10, 68);
   doc.text(`CPF/CNPJ: ${client.documento || '---'}`, 10, 73);
   doc.text(`TELEFONE: ${client.telefone || '---'}`, 10, 78);
   doc.text(`DATA DE EMISSÃO: ${dateStr}`, 140, 68);
   doc.text(`O.S. Nº: ${form.value.id}`, 140, 73);
-
-  const rows = form.value.items.map(i => [
-    i.descricao_item,
-    i.quantidade,
-    formatCurrency(i.valor_unitario),
-    formatCurrency(i.quantidade * i.valor_unitario)
-  ]);
-
-  autoTable(doc, {
-    startY: 85,
-    head: [['Descrição do Serviço/Peça', 'Qtd', 'Unitário', 'Total']],
-    body: rows,
-    theme: 'grid',
-    headStyles: { fillColor: [86, 166, 193] }
-  });
-
+  const rows = form.value.items.map(i => [i.descricao_item, i.quantidade, formatCurrency(i.valor_unitario), formatCurrency(i.quantidade * i.valor_unitario)]);
+  autoTable(doc, { startY: 85, head: [['Descrição', 'Qtd', 'Unitário', 'Total']], body: rows, theme: 'grid', headStyles: { fillColor: [86, 166, 193] } });
   const finalY = doc.lastAutoTable.finalY + 10;
   doc.setFont('helvetica', 'bold');
   doc.text(`SUBTOTAL: ${formatCurrency(subtotalItems.value)}`, 140, finalY);
   doc.text(`DESCONTO: ${formatCurrency(form.value.desconto)}`, 140, finalY + 5);
   doc.setFontSize(12);
   doc.text(`TOTAL PAGO: ${formatCurrency(form.value.valor_total)}`, 140, finalY + 12);
-
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('_________________________________________________', 105, 250, { align: 'center' });
-  doc.text('ASSINATURA DO PRESTADOR', 105, 255, { align: 'center' });
-
   doc.save(`Recibo_OS_${form.value.id}.pdf`);
-};
-
-const onDragStart = (order) => { draggedOrder.value = order; };
-
-const onDrop = (targetColumnTitle) => {
-  if (!draggedOrder.value) return;
-  const titleToStatus = { 'Pendente': 'pending', 'Em Produção': 'production', 'Concluído': 'completed', 'NFe Emitida': 'billed' };
-  const newStatus = titleToStatus[targetColumnTitle];
-  const orderIndex = ordens.value.findIndex(o => o.id === draggedOrder.value.id);
-  if (orderIndex !== -1) ordens.value[orderIndex].status = newStatus;
-  draggedOrder.value = null;
 };
 </script>
 

@@ -82,71 +82,95 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import demoData from '../data/demoData.json';
+import { ref, computed, onMounted } from 'vue';
+import { api } from '../services/api';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoImg from '../logo.png';
 
-defineEmits(['cancel']);
-
-const clientes = ref(demoData.clientes);
-const orcamentosSalvos = ref(demoData.orcamentos || []);
+const clientes = ref([]);
+const orcamentosSalvos = ref([]);
 const selectedClientId = ref(null);
 const itens = ref([]);
 const isEditing = ref(false);
 const editingId = ref(null);
 
-const addItem = () => { itens.value.push({ descricao: '', quantidade: 1, valor: 0, unidade: '' }); };
-const removeItem = (index) => { itens.value.splice(index, 1); };
-const totalOrcamento = computed(() => { return itens.value.reduce((total, item) => total + (item.quantidade * item.valor), 0); });
-const formatCurrency = (value) => { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0); };
-const getClienteNome = (id) => { const cliente = clientes.value.find(c => c.id === id); return cliente ? cliente.nome : 'Cliente N/A'; };
+const loadData = async () => {
+  const [resClientes, resOrcamentos] = await Promise.all([
+    api.get('/clientes'),
+    api.get('/orcamentos')
+  ]);
+  clientes.value = resClientes;
+  orcamentosSalvos.value = resOrcamentos;
+};
 
-const resetForm = () => {
-  selectedClientId.value = null;
-  itens.value = [];
-  isEditing.value = false;
-  editingId.value = null;
+onMounted(loadData);
+
+const addItem = () => { itens.value.push({ descricao_item: '', quantidade: 1, valor_unitario: 0 }); };
+const removeItem = (index) => { itens.value.splice(index, 1); };
+const totalOrcamento = computed(() => itens.value.reduce((total, item) => total + (item.quantidade * item.valor_unitario), 0));
+const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+const getClienteNome = (id) => clientes.value.find(c => c.id === id)?.nome || 'Cliente N/A';
+
+const resetForm = () => { selectedClientId.value = null; itens.value = []; isEditing.value = false; editingId.value = null; };
+
+const save = async () => {
+  try {
+    const payload = {
+      cliente_id: selectedClientId.value,
+      valor_total: totalOrcamento.value,
+      items: itens.value
+    };
+    if (isEditing.value) {
+      await api.put(`/orcamentos/${editingId.value}`, payload);
+    } else {
+      await api.post('/orcamentos', payload);
+    }
+    await loadData();
+    resetForm();
+  } catch (e) {
+    alert(e.message);
+  }
+};
+
+const deleteOrcamento = async (id) => {
+  if (confirm('Excluir orçamento?')) {
+    await api.delete(`/orcamentos/${id}`);
+    await loadData();
+  }
 };
 
 const editOrcamento = (orc) => {
   isEditing.value = true;
   editingId.value = orc.id;
   selectedClientId.value = orc.cliente_id;
-  itens.value = JSON.parse(JSON.stringify(orc.itens));
+  itens.value = JSON.parse(JSON.stringify(orc.itens_orcamento || []));
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-const deleteOrcamento = (id) => { if (confirm('Deseja excluir este orçamento?')) orcamentosSalvos.value = orcamentosSalvos.value.filter(o => o.id !== id); };
-const gerarOS = (orc) => { alert(`Ordem de Serviço gerada a partir do orçamento #${orc.id}`); };
-
 const downloadPDF = (orc) => {
   const doc = new jsPDF();
-  const cliente = clientes.value.find(c => c.id === orc.cliente_id) || { nome: '', endereco: '', fone: '', cpf: '' };
-  const dataEmissao = orc.data || new Date().toLocaleDateString('pt-BR');
+  const cliente = clientes.value.find(c => c.id === orc.cliente_id) || { nome: '' };
   doc.setDrawColor(0); doc.setLineWidth(0.3); doc.rect(10, 10, 190, 38); doc.addImage(logoImg, 'JPG', 25, 12, 45, 33);
   doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.text('W&K vidros', 140, 20, { align: 'center' });
-  doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.text('CPF/CNPJ: 55952245000100', 140, 27, { align: 'center' });
-  doc.text('Avenida 21 de abril', 140, 32, { align: 'center' }); doc.text('Telefone(s): 62998766290', 140, 37, { align: 'center' });
-  doc.rect(10, 50, 63, 6); doc.rect(73, 50, 63, 6); doc.rect(136, 50, 64, 6); doc.text(`Orçamento nº: ${orc.id}`, 12, 54); doc.text(`Emitido em: ${dataEmissao}`, 75, 54); doc.text(`Válido até:`, 138, 54);
-  doc.rect(10, 58, 190, 6); doc.text(`Cliente:  ${cliente.nome}`, 12, 62); doc.rect(10, 64, 190, 6); doc.text(`Endereço: ${cliente.endereco || ''}`, 12, 68);
-  doc.rect(10, 70, 95, 6); doc.rect(105, 70, 95, 6); doc.text(`Fone: ${cliente.fone || ''}`, 12, 74); doc.text(`CPF: ${cliente.cpf || ''}`, 107, 74);
-  const tableRows = orc.itens.map(item => [item.quantidade, item.unidade || '', item.descricao, item.valor.toFixed(2), (item.quantidade * item.valor).toFixed(2)]);
-  while (tableRows.length < 10) tableRows.push(['', '', '', '', '']);
-  autoTable(doc, { startY: 80, head: [['Quant.', 'Unid.', 'Descrição', 'Unitário', 'Total']], body: tableRows, theme: 'grid', headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.3, lineColor: [0, 0, 0], halign: 'center' }, styles: { lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0], fontSize: 9 }, columnStyles: { 0: { halign: 'center', cellWidth: 20 }, 1: { halign: 'center', cellWidth: 20 }, 2: { halign: 'left' }, 3: { halign: 'center', cellWidth: 30 }, 4: { halign: 'center', cellWidth: 30 } } });
-  const summaryY = doc.lastAutoTable.finalY + 8;
-  autoTable(doc, { startY: summaryY, head: [['Subtotal', 'Desconto', 'Acréscimo', 'Total']], body: [[formatCurrency(orc.total), formatCurrency(0), formatCurrency(0), formatCurrency(orc.total)]], theme: 'grid', headStyles: { fillColor: [230, 230, 230], textColor: [0, 0, 0], lineWidth: 0.3, lineColor: [0, 0, 0], halign: 'center' }, styles: { lineColor: [0, 0, 0], lineWidth: 0.1, halign: 'center' } });
-  const footerY = 270; doc.line(20, footerY, 95, footerY); doc.line(115, footerY, 190, footerY); doc.text('W&K vidros', 57, footerY + 5, { align: 'center' }); doc.text(cliente.nome, 152, footerY + 5, { align: 'center' });
-  doc.save(`Orcamento_WK_${cliente.nome.replace(/\s+/g, '_')}.pdf`);
+  const tableRows = orc.itens_orcamento.map(item => [item.quantidade, '', item.descricao_item, item.valor_unitario.toFixed(2), (item.quantidade * item.valor_unitario).toFixed(2)]);
+  autoTable(doc, { startY: 80, head: [['Quant.', 'Unid.', 'Descrição', 'Unitário', 'Total']], body: tableRows, theme: 'grid' });
+  doc.save(`Orcamento_WK_${orc.id}.pdf`);
 };
 
-const save = () => {
-  const dataEmissao = new Date().toLocaleDateString('pt-BR');
-  const orcamentoNo = isEditing.value ? editingId.value : Date.now();
-  const novoOrcamento = { id: orcamentoNo, cliente_id: selectedClientId.value, data: dataEmissao, total: totalOrcamento.value, itens: JSON.parse(JSON.stringify(itens.value)) };
-  if (!isEditing.value) orcamentosSalvos.value.unshift(novoOrcamento); else { const idx = orcamentosSalvos.value.findIndex(o => o.id === editingId.value); if (idx !== -1) orcamentosSalvos.value[idx] = novoOrcamento; }
-  downloadPDF(novoOrcamento); resetForm();
+const gerarOS = async (orc) => {
+  try {
+    const payload = {
+      cliente_id: orc.cliente_id,
+      valor_total: orc.valor_total,
+      status: 'pending',
+      items: orc.itens_orcamento
+    };
+    await api.post('/ordens', payload);
+    alert('Ordem de Serviço gerada com sucesso!');
+  } catch (e) {
+    alert(e.message);
+  }
 };
 </script>
 

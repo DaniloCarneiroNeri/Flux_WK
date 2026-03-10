@@ -82,26 +82,47 @@
 
 <script setup>
 import { reactive, onMounted } from 'vue';
-import demoData from '../data/demoData.json';
+import { api } from '../services/api';
 
 const filters = reactive({ start: '', end: '' });
 const metrics = reactive({ entradas: 0, saidas: 0, liquido: 0 });
 const filteredData = reactive({ ordens: [], despesas: [] });
 
 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
-const formatDate = (dateStr) => { if (!dateStr) return ''; const [year, month, day] = dateStr.split('-'); return `${day}/${month}/${year}`; };
+const formatDate = (dateStr) => { 
+  if (!dateStr) return ''; 
+  const pureDate = dateStr.split('T')[0];
+  const [year, month, day] = pureDate.split('-'); 
+  return `${day}/${month}/${year}`; 
+};
 
-const generate = () => {
-  const start = new Date(filters.start); const end = new Date(filters.end);
-  filteredData.ordens = (demoData.ordens || []).filter(os => { const d = new Date(os.data_conclusao); return os.status === 'completed' && d >= start && d <= end; });
-  filteredData.despesas = (demoData.despesas || []).filter(desp => { const d = new Date(desp.vencimento); return d >= start && d <= end; });
+const generate = async () => {
+  const [allOrdens, allDespesas] = await Promise.all([
+    api.get('/ordens'),
+    api.get('/despesas')
+  ]);
+
+  const start = new Date(filters.start);
+  const end = new Date(filters.end);
+
+  filteredData.ordens = allOrdens.filter(os => {
+    const d = new Date(os.data_conclusao || os.data_abertura);
+    return os.status === 'completed' && d >= start && d <= end;
+  });
+
+  filteredData.despesas = allDespesas.filter(desp => {
+    const d = new Date(desp.data_vencimento || desp.data_cadastro);
+    return d >= start && d <= end;
+  });
+
   metrics.entradas = filteredData.ordens.reduce((sum, os) => sum + os.valor_total, 0);
   metrics.saidas = filteredData.despesas.reduce((sum, desp) => sum + desp.valor, 0);
   metrics.liquido = metrics.entradas - metrics.saidas;
 };
 
 onMounted(() => {
-  const now = new Date(); filters.start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const now = new Date();
+  filters.start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   filters.end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
   generate();
 });

@@ -14,7 +14,7 @@
           <input type="password" v-model="credentials.senha" placeholder="••••••••" class="modern-input" required />
         </div>
         <button type="submit" class="btn-login" :disabled="loading">
-          {{ loading ? 'AUTENTICANDO...' : 'ACESSAR SISTEMA' }}
+          {{ loading ? 'AUTENTICANDO...' : 'ACESSAR' }}
         </button>
       </form>
       <p class="footer-text">Gestão Inteligente WK Vidros</p>
@@ -24,15 +24,22 @@
 
 <script setup>
 import { reactive, ref } from 'vue';
+import { api } from '../services/api';
+
 const emit = defineEmits(['login-success']);
 const credentials = reactive({ usuario: '', senha: '' });
 const loading = ref(false);
-const handleLogin = () => {
+
+const handleLogin = async () => {
   loading.value = true;
-  setTimeout(() => {
-    emit('login-success', { id: 1, usuario: credentials.usuario, nome: 'Operador WK' });
+  try {
+    const data = await api.post('/auth/login', credentials);
+    emit('login-success', data);
+  } catch (e) {
+    alert('Usuário ou senha inválidos');
+  } finally {
     loading.value = false;
-  }, 1000);
+  }
 };
 </script>
 
