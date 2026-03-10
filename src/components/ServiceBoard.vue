@@ -54,7 +54,7 @@
           </div>
         </div>
 
-        <div v-else class="table-container">
+        <div v-else class="table-view-wrapper">
           <div class="responsive-table">
             <table class="modern-grid">
               <thead>
@@ -63,14 +63,16 @@
                   <th>CLIENTE</th>
                   <th>VALOR</th>
                   <th>STATUS</th>
+                  <th>AÇÕES</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="order in ordens" :key="order.id" @click="openModal(order)" class="row-hover">
+                <tr v-for="order in ordens" :key="order.id" class="row-hover">
                   <td><strong>#{{ order.id }}</strong></td>
                   <td>{{ order.clientes.nome }}</td>
                   <td class="price-col">{{ formatCurrency(order.valor_total) }}</td>
-                  <td><span class="status-tag" :class="order.status">{{ order.status }}</span></td>
+                  <td><span class="status-tag" :class="order.status">{{ getStatusLabel(order.status) }}</span></td>
+                  <td><button class="btn-edit-small" @click="openModal(order)">Detalhes</button></td>
                 </tr>
               </tbody>
             </table>
@@ -116,11 +118,24 @@
         </div>
       </div>
     </transition>
+
+    <transition name="fade">
+      <div v-if="notify.show" class="custom-alert-overlay" @click="notify.show = false">
+        <div class="alert-box" :class="notify.type">
+          <div class="alert-icon">{{ notify.type === 'error' ? '✕' : '✓' }}</div>
+          <div class="alert-content">
+            <h4>{{ notify.title }}</h4>
+            <p>{{ notify.message }}</p>
+          </div>
+          <button class="btn-close-alert" @click="notify.show = false">OK</button>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, reactive } from 'vue';
 import { api } from '../services/api';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -135,13 +150,31 @@ const saving = ref(false);
 const form = ref(null);
 const dbClients = ref([]);
 
+const notify = reactive({
+  show: false,
+  title: '',
+  message: '',
+  type: 'success'
+});
+
+const triggerNotify = (title, message, type = 'success') => {
+  notify.title = title;
+  notify.message = message;
+  notify.type = type;
+  notify.show = true;
+};
+
 const loadData = async () => {
-  const [resOrdens, resClientes] = await Promise.all([
-    api.get('/ordens'),
-    api.get('/clientes')
-  ]);
-  ordens.value = resOrdens;
-  dbClients.value = resClientes;
+  try {
+    const [resOrdens, resClientes] = await Promise.all([
+      api.get('/ordens'),
+      api.get('/clientes')
+    ]);
+    ordens.value = resOrdens;
+    dbClients.value = resClientes;
+  } catch (e) {
+    triggerNotify('Erro de Conexão', 'Não foi possível carregar os dados.', 'error');
+  }
 };
 
 onMounted(loadData);
@@ -169,6 +202,11 @@ const columns = computed(() => {
     { title: 'Concluído', orders: grouped['Concluído'] || [], color: '#2ecc71' }
   ];
 });
+
+const getStatusLabel = (status) => {
+  const labels = { pending: 'Pendente', production: 'Produção', completed: 'Concluído', billed: 'NFe Emitida', late: 'Atrasado' };
+  return labels[status] || status;
+};
 
 const subtotalItems = computed(() => {
   if (!form.value || !form.value.items) return 0;
@@ -209,8 +247,9 @@ const saveOrder = async () => {
     }
     await loadData();
     closeModal();
+    triggerNotify('Sucesso', 'Ordem de serviço salva com sucesso.', 'success');
   } catch (e) {
-    alert(e.message);
+    triggerNotify('Erro ao Salvar', e.message, 'error');
   } finally {
     saving.value = false;
   }
@@ -222,58 +261,31 @@ const onDrop = async (targetColumnTitle) => {
   if (!draggedOrder.value) return;
   const titleToStatus = { 'Pendente': 'pending', 'Em Produção': 'production', 'Concluído': 'completed', 'NFe Emitida': 'billed' };
   const newStatus = titleToStatus[targetColumnTitle];
+  const oldStatus = draggedOrder.value.status;
+
+  if (oldStatus === newStatus) return;
+
+  const orderIndex = ordens.value.findIndex(o => o.id === draggedOrder.value.id);
+  if (orderIndex !== -1) {
+    ordens.value[orderIndex].status = newStatus;
+  }
+
   try {
     await api.patch(`/ordens/${draggedOrder.value.id}/status`, { status: newStatus });
-    await loadData();
   } catch (e) {
-    alert(e.message);
+    if (orderIndex !== -1) {
+      ordens.value[orderIndex].status = oldStatus;
+    }
+    triggerNotify('Erro ao Mover', 'Não foi possível atualizar o status no servidor.', 'error');
   }
   draggedOrder.value = null;
 };
 
-const addItem = () => { if (!isLocked.value) form.value.items.push({ descricao_item: '', quantidade: 1, valor_unitario: 0 }); };
-const removeItem = (index) => { if (!isLocked.value) form.value.items.splice(index, 1); };
 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
-
-const emitReceipt = () => {
-  const doc = new jsPDF();
-  const client = dbClients.value.find(c => c.id === form.value.cliente_id) || { nome: 'Consumidor' };
-  const dateStr = new Date().toLocaleDateString('pt-BR');
-  doc.setDrawColor(86, 166, 193);
-  doc.setLineWidth(0.5);
-  doc.rect(10, 10, 190, 40);
-  doc.addImage(logoImg, 'PNG', 15, 15, 35, 30);
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇO', 60, 25);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('WK VIDROS - Forros e PVC', 60, 32);
-  doc.text('CNPJ: 55.952.245/0001-00', 60, 37);
-  doc.text('Avenida 21 de Abril - Telefone: (62) 99876-6290', 60, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.text('DADOS DO CLIENTE', 10, 60);
-  doc.line(10, 62, 200, 62);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`NOME: ${client.nome}`, 10, 68);
-  doc.text(`CPF/CNPJ: ${client.documento || '---'}`, 10, 73);
-  doc.text(`TELEFONE: ${client.telefone || '---'}`, 10, 78);
-  doc.text(`DATA DE EMISSÃO: ${dateStr}`, 140, 68);
-  doc.text(`O.S. Nº: ${form.value.id}`, 140, 73);
-  const rows = form.value.items.map(i => [i.descricao_item, i.quantidade, formatCurrency(i.valor_unitario), formatCurrency(i.quantidade * i.valor_unitario)]);
-  autoTable(doc, { startY: 85, head: [['Descrição', 'Qtd', 'Unitário', 'Total']], body: rows, theme: 'grid', headStyles: { fillColor: [86, 166, 193] } });
-  const finalY = doc.lastAutoTable.finalY + 10;
-  doc.setFont('helvetica', 'bold');
-  doc.text(`SUBTOTAL: ${formatCurrency(subtotalItems.value)}`, 140, finalY);
-  doc.text(`DESCONTO: ${formatCurrency(form.value.desconto)}`, 140, finalY + 5);
-  doc.setFontSize(12);
-  doc.text(`TOTAL PAGO: ${formatCurrency(form.value.valor_total)}`, 140, finalY + 12);
-  doc.save(`Recibo_OS_${form.value.id}.pdf`);
-};
 </script>
 
 <style scoped>
-.board-container { padding: 20px; background: #f8fafc; min-height: 100vh; font-family: 'Inter', sans-serif; }
+.board-container { padding: 24px; background: #f8fafc; min-height: 100vh; }
 .board-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; gap: 20px; flex-wrap: wrap; }
 .header-info h1 { font-size: 1.5rem; font-weight: 900; color: #1e293b; margin: 0; }
 .header-info p { color: #64748b; font-size: 0.9rem; margin-top: 4px; }
@@ -299,6 +311,27 @@ const emitReceipt = () => {
 .card-bottom { display: flex; justify-content: space-between; align-items: center; }
 .total-price { color: #56a6c1; font-weight: 900; font-size: 1.1rem; }
 .icon-drag { color: #e2e8f0; font-size: 1.2rem; }
+
+.table-view-wrapper { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #edf2f7; }
+.modern-grid { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.modern-grid th { text-align: left; padding: 16px; color: #94a3b8; font-size: 0.75rem; border-bottom: 1px solid #f1f5f9; text-transform: uppercase; font-weight: 800; }
+.modern-grid td { padding: 16px; border-bottom: 1px solid #f8fafc; font-size: 0.9rem; color: #1e293b; }
+.row-hover:hover { background-color: #f8fafc; }
+.status-tag { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 800; }
+.status-tag.pending { background: #fef3c7; color: #d97706; }
+.status-tag.production { background: #e0f2fe; color: #0284c7; }
+.status-tag.completed { background: #dcfce7; color: #16a34a; }
+.status-tag.billed { background: #f3e8ff; color: #9333ea; }
+.btn-edit-small { background: #f1f5f9; border: none; padding: 6px 12px; border-radius: 6px; color: #56a6c1; font-weight: 700; cursor: pointer; }
+
+.custom-alert-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); z-index: 2000; display: flex; align-items: center; justify-content: center; }
+.alert-box { background: #fff; padding: 32px; border-radius: 24px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+.alert-icon { width: 50px; height: 50px; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; }
+.success .alert-icon { background: #dcfce7; color: #16a34a; }
+.error .alert-icon { background: #fee2e2; color: #ef4444; }
+.alert-content h4 { font-size: 1.2rem; color: #1e293b; margin-bottom: 10px; }
+.alert-content p { color: #64748b; margin-bottom: 24px; line-height: 1.5; }
+.btn-close-alert { width: 100%; background: #1e293b; color: #fff; border: none; padding: 12px; border-radius: 12px; font-weight: 800; cursor: pointer; }
 
 @media (max-width: 768px) {
   .board-header { flex-direction: column; align-items: stretch; }
