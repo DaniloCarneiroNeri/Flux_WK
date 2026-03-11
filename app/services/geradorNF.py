@@ -42,9 +42,10 @@ def calcular_dv(chave_43):
 
 def gerar_chave_acesso(uf, data, cnpj, serie, numero):
     ano_mes = data[2:4] + data[5:7]
-    chave_parcial = f"{uf}{ano_mes}{cnpj}55{str(serie).zfill(3)}{str(numero).zfill(9)}1{str(random.randint(10000000, 99999999))}"
+    cnf_random = str(random.randint(10000000, 99999999))
+    chave_parcial = f"{uf}{ano_mes}{cnpj}55{str(serie).zfill(3)}{str(numero).zfill(9)}1{cnf_random}"
     dv = calcular_dv(chave_parcial)
-    return f"{chave_parcial}{dv}", chave_parcial[-9:-1], dv
+    return f"{chave_parcial}{dv}", cnf_random, dv
 
 class NFeBuilder:
     def montar_nfe(self, dados):
@@ -84,12 +85,10 @@ class NFeBuilder:
         etree.SubElement(sn, f"{{{NFE_NAMESPACE}}}orig").text = "0"
         etree.SubElement(sn, f"{{{NFE_NAMESPACE}}}CSOSN").text = "102"
         
-        # PIS Obrigatório
         pis = etree.SubElement(imp, f"{{{NFE_NAMESPACE}}}PIS")
         pis_nt = etree.SubElement(pis, f"{{{NFE_NAMESPACE}}}PISNT")
         etree.SubElement(pis_nt, f"{{{NFE_NAMESPACE}}}CST").text = "07"
         
-        # COFINS Obrigatório
         cofins = etree.SubElement(imp, f"{{{NFE_NAMESPACE}}}COFINS")
         cofins_nt = etree.SubElement(cofins, f"{{{NFE_NAMESPACE}}}COFINSNT")
         etree.SubElement(cofins_nt, f"{{{NFE_NAMESPACE}}}CST").text = "07"
@@ -98,6 +97,7 @@ class NFeBuilder:
         ict = etree.SubElement(tot, f"{{{NFE_NAMESPACE}}}ICMSTot")
         for f in ["vBC", "vICMS", "vICMSDeson", "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet", "vProd", "vFrete", "vSeg", "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS", "vCOFINS", "vOutro", "vNF"]:
             etree.SubElement(ict, f"{{{NFE_NAMESPACE}}}{f}").text = f"{dados['valor_total']:.2f}" if f in ["vProd", "vNF"] else "0.00"
+        etree.SubElement(ict, f"{{{NFE_NAMESPACE}}}vTotTrib").text = "0.00"
         
         transp = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}transp")
         etree.SubElement(transp, f"{{{NFE_NAMESPACE}}}modFrete").text = "9"
@@ -120,7 +120,8 @@ class NFeBuilder:
         envio.append(signed)
         
         xml_final = etree.tostring(envio, encoding="unicode")
-        soap = f'<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><nfeDadosMsg xmlns="{NFE_NAMESPACE}">{xml_final}</nfeDadosMsg></soap12:Body></soap12:Envelope>'
+        wsdl_ns = "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4"
+        soap = f'<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><nfeDadosMsg xmlns="{wsdl_ns}">{xml_final}</nfeDadosMsg></soap12:Body></soap12:Envelope>'
         
         with tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as c, tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as k:
             c.write(cert_pem); k.write(key_pem); cp, kp = c.name, k.name
