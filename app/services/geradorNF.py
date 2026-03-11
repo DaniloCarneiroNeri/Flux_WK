@@ -16,8 +16,9 @@ NS_MAP = {None: NFE_NAMESPACE}
 
 def normalizar_texto(texto):
     if not texto: return ""
-    return ''.join(c for c in unicodedata.normalize('NFD', str(texto))
-                   if unicodedata.category(c) != 'Mn')
+    texto = str(texto).replace("'", "").replace('"', "")
+    return ''.join(c for c in unicodedata.normalize('NFD', texto)
+                   if unicodedata.category(c) != 'Mn').strip()
 
 def carregar_certificado(caminho_dummy, senha):
     b64_data = os.getenv("CERTIFICADO_BASE64")
@@ -62,7 +63,7 @@ class NFeBuilder:
             base_dir = os.path.dirname(os.path.abspath(__file__))
             xsd_file = os.path.join(base_dir, "nfe_v4.00.xsd")
             if not os.path.exists(xsd_file):
-                return True, "XSD nao encontrado, pulando validacao local"
+                return True, ""
             schema_doc = etree.parse(xsd_file)
             schema = etree.XMLSchema(schema_doc)
             schema.assertValid(xml_element)
@@ -71,11 +72,13 @@ class NFeBuilder:
             return False, str(e)
 
     def montar_nfe(self, dados):
-        dh_emi = dados["data_emissao"]
-        if "T" not in dh_emi:
-            dh_emi += "T10:00:00-03:00"
-        elif len(dh_emi) <= 19:
-            dh_emi += "-03:00"
+        dh_emi_raw = dados["data_emissao"].replace(" ", "T")
+        if "T" not in dh_emi_raw:
+            dh_emi = f"{dh_emi_raw}T10:00:00-03:00"
+        elif "-" not in dh_emi_raw[10:] and "+" not in dh_emi_raw[10:]:
+            dh_emi = f"{dh_emi_raw[:19]}-03:00"
+        else:
+            dh_emi = dh_emi_raw
             
         chave, cnf, dv = gerar_chave_acesso("52", dh_emi, PRESTADOR_CNPJ, "1", dados["rps_numero"])
         root = etree.Element(f"{{{NFE_NAMESPACE}}}NFe", nsmap=NS_MAP)
@@ -98,9 +101,9 @@ class NFeBuilder:
         
         dest = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}dest")
         etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}{'CPF' if len(dados['documento_tomador'])==11 else 'CNPJ'}").text = dados["documento_tomador"]
-        etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}xNome").text = normalizar_texto(dados["nome"][:60])
+        etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}xNome").text = normalizar_texto(dados["nome"])[:60]
         enderDest = etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}enderDest")
-        tags_dest = [("xLgr", normalizar_texto(dados["endereco"])), ("nro", dados["numero"]), ("xBairro", normalizar_texto(dados["bairro"])), ("cMun", dados["codigo_ibge"]), ("xMun", "IACIARA"), ("UF", dados["uf"]), ("CEP", dados["cep"]), ("cPais", "1058"), ("xPais", "BRASIL")]
+        tags_dest = [("xLgr", normalizar_texto(dados["endereco"])[:60]), ("nro", dados["numero"]), ("xBairro", normalizar_texto(dados["bairro"])[:60]), ("cMun", dados["codigo_ibge"]), ("xMun", "IACIARA"), ("UF", dados["uf"]), ("CEP", dados["cep"]), ("cPais", "1058"), ("xPais", "BRASIL")]
         for tag, val in tags_dest:
             etree.SubElement(enderDest, f"{{{NFE_NAMESPACE}}}{tag}").text = val
         etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}indIEDest").text = "9"
@@ -148,23 +151,23 @@ class NFeBuilder:
             digest_algorithm="sha256",
             c14n_algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
         )
+        
+        etree.register_namespace("ds", "http://www.w3.org/2000/09/xmldsig#")
         signed = signer.sign(self.root, key=key_pem, cert=cert_pem, reference_uri=f"#{nfe_id}")
         
         envio = etree.Element(f"{{{NFE_NAMESPACE}}}enviNFe", nsmap=NS_MAP, versao="4.00")
-        etree.SubElement(envio, f"{{{NFE_NAMESPACE}}}idLote").text = str(random.randint(1, 999999))
+        etree.SubElement(envio, f"{{{NFE_NAMESPACE}}}idLote").text = str(random.randint(1, 999999999999999))
         etree.SubElement(envio, f"{{{NFE_NAMESPACE}}}indSinc").text = "1"
         envio.append(signed)
         
         etree.cleanup_namespaces(envio)
         xml_final = etree.tostring(envio, encoding="utf-8", xml_declaration=False).decode("utf-8")
         
-        print("--- XML FINAL PARA SEFAZ ---")
-        print(xml_final)
-        print("----------------------------")
+        print(f"DEBUG - XML de Envio: {xml_final}")
 
         valido, erro_msg = self.validar_com_xsd(envio)
         if not valido:
-            print(f"Alerta: Falha no Schema local: {erro_msg}")
+            print(f"Erro de Schema Local: {erro_msg}")
 
         wsdl_ns = "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4"
         soap = (f'<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
@@ -182,10 +185,22 @@ class NFeBuilder:
 
 def gerar_xml_centi(rps_numero, dados_cliente, discriminacao, valor_total, data_emissao, codigo_ibge_resolvido, caminho_pfx, senha_pfx):
     cert, key = carregar_certificado(caminho_pfx, senha_pfx)
-    if not cert: return {"sucesso": False, "erros": ["Falha no certificado"]}
-    doc = dados_cliente.get("documento", "").replace(".", "").replace("-", "").replace("/", "")
+    if not cert: return {"sucesso": False, "erros": ["Certificado invalido"]}
+    doc = dados_cliente.get("documento", "").replace(".", "").replace("-", "").replace("/", "").strip()
     builder = NFeBuilder()
-    nfe_id = builder.montar_nfe({"rps_numero": rps_numero, "valor_total": valor_total, "data_emissao": data_emissao, "codigo_ibge": codigo_ibge_resolvido, "documento_tomador": doc, "nome": dados_cliente.get("nome"), "endereco": dados_cliente.get("endereco"), "numero": dados_cliente.get("numero") or "SN", "bairro": dados_cliente.get("bairro"), "uf": dados_cliente.get("uf"), "cep": dados_cliente.get("cep", "").replace("-", "")})
+    nfe_id = builder.montar_nfe({
+        "rps_numero": rps_numero, 
+        "valor_total": valor_total, 
+        "data_emissao": data_emissao, 
+        "codigo_ibge": codigo_ibge_resolvido, 
+        "documento_tomador": doc, 
+        "nome": dados_cliente.get("nome", ""), 
+        "endereco": dados_cliente.get("endereco", ""), 
+        "numero": str(dados_cliente.get("numero") or "SN"), 
+        "bairro": dados_cliente.get("bairro", ""), 
+        "uf": dados_cliente.get("uf", ""), 
+        "cep": dados_cliente.get("cep", "").replace("-", "").strip()
+    })
     try:
         resultado = builder.assinar_e_transmitir(cert, key, nfe_id)
         return {"sucesso": True, "xml": resultado}
