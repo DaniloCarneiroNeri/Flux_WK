@@ -50,12 +50,13 @@ def gerar_chave_acesso(uf, data, cnpj, serie, numero):
 class NFeBuilder:
     def validar_com_xsd(self, xml_element):
         try:
-            diretorio_atual = os.path.dirname(os.path.abspath(__file__))
-            caminho_xsd = os.path.join(diretorio_atual, "nfe_v4.00.xsd")
+            diretorio_base = os.path.dirname(os.path.abspath(__file__))
+            caminho_xsd = os.path.join(diretorio_base, "nfe_v4.00.xsd")
             
-            parser = etree.XMLParser(remove_blank_text=True)
-            schema_doc = etree.parse(caminho_xsd, parser)
-            schema = etree.XMLSchema(schema_doc)
+            with open(caminho_xsd, 'rb') as f:
+                schema_root = etree.XML(f.read(), base_url=diretorio_base)
+                schema = etree.XMLSchema(schema_root)
+            
             schema.assertValid(xml_element)
             return True, ""
         except Exception as e:
