@@ -160,7 +160,7 @@
           <div class="modal-footer">
             <div class="footer-actions-left">
               <button class="btn-action-alt" @click="emitReceipt" :disabled="!isEditing">EMITIR RECIBO</button>
-              <button class="btn-action-alt" disabled title="Em breve">EMITIR NFE</button>
+              <button class="btn-action-alt" @click="emitNFe" :disabled="!isEditing || form.status === 'billed'">EMITIR NFE</button>
             </div>
             <div class="footer-actions-right">
               <button class="btn-sec" @click="closeModal">FECHAR</button>
@@ -204,28 +204,16 @@ const saving = ref(false);
 const form = ref(null);
 const dbClients = ref([]);
 
-const notify = reactive({
-  show: false,
-  title: '',
-  message: '',
-  type: 'success'
-});
+const notify = reactive({ show: false, title: '', message: '', type: 'success' });
 
 const triggerNotify = (title, message, type = 'success') => {
-  notify.title = title;
-  notify.message = message;
-  notify.type = type;
-  notify.show = true;
+  notify.title = title; notify.message = message; notify.type = type; notify.show = true;
 };
 
 const loadData = async () => {
   try {
-    const [resOrdens, resClientes] = await Promise.all([
-      api.get('/ordens'),
-      api.get('/clientes')
-    ]);
-    ordens.value = resOrdens;
-    dbClients.value = resClientes;
+    const [resOrdens, resClientes] = await Promise.all([api.get('/ordens'), api.get('/clientes')]);
+    ordens.value = resOrdens; dbClients.value = resClientes;
   } catch (e) {
     triggerNotify('Erro de Conexão', 'Não foi possível carregar os dados.', 'error');
   }
@@ -234,21 +222,13 @@ const loadData = async () => {
 onMounted(loadData);
 
 const columns = computed(() => {
-  const statusMap = {
-    pending: 'Pendente',
-    late: 'Pendente',
-    production: 'Em Produção',
-    completed: 'Concluído',
-    billed: 'NFe Emitida'
-  };
-
+  const statusMap = { pending: 'Pendente', late: 'Pendente', production: 'Em Produção', completed: 'Concluído', billed: 'NFe Emitida' };
   const grouped = ordens.value.reduce((acc, order) => {
     const status = statusMap[order.status] || 'Pendente';
     if (!acc[status]) acc[status] = [];
     acc[status].push(order);
     return acc;
   }, {});
-
   return [
     { title: 'Pendente', orders: grouped['Pendente'] || [], color: '#f39c12' },
     { title: 'Em Produção', orders: grouped['Em Produção'] || [], color: '#56a6c1' },
@@ -270,9 +250,7 @@ const subtotalItems = computed(() => {
 const isLocked = computed(() => isEditing.value && form.value?.status === 'billed');
 
 watch(() => (form.value ? [form.value.items, form.value.desconto] : null), () => {
-  if (form.value) {
-    form.value.valor_total = subtotalItems.value - (parseFloat(form.value.desconto) || 0);
-  }
+  if (form.value) { form.value.valor_total = subtotalItems.value - (parseFloat(form.value.desconto) || 0); }
 }, { deep: true });
 
 const openModal = (order = null) => {
@@ -293,25 +271,12 @@ const closeModal = () => { showModal.value = false; form.value = null; };
 const saveOrder = async () => {
   saving.value = true;
   try {
-    const payload = { 
-      ...form.value,
-      desconto: parseFloat(form.value.desconto) || 0,
-      itens_ordem: form.value.items
-    };
-    
-    if (isEditing.value) {
-      await api.put(`/ordens/${form.value.id}`, payload);
-    } else {
-      await api.post('/ordens', payload);
-    }
-    await loadData();
-    closeModal();
-    triggerNotify('Sucesso', 'Ordem de serviço salva com sucesso.', 'success');
-  } catch (e) {
-    triggerNotify('Erro ao Salvar', e.message, 'error');
-  } finally {
-    saving.value = false;
-  }
+    const payload = { ...form.value, desconto: parseFloat(form.value.desconto) || 0, itens_ordem: form.value.items };
+    if (isEditing.value) { await api.put(`/ordens/${form.value.id}`, payload); }
+    else { await api.post('/ordens', payload); }
+    await loadData(); closeModal(); triggerNotify('Sucesso', 'Ordem de serviço salva.', 'success');
+  } catch (e) { triggerNotify('Erro ao Salvar', e.message, 'error'); }
+  finally { saving.value = false; }
 };
 
 const onDragStart = (order) => { draggedOrder.value = order; };
@@ -321,80 +286,125 @@ const onDrop = async (targetColumnTitle) => {
   const titleToStatus = { 'Pendente': 'pending', 'Em Produção': 'production', 'Concluído': 'completed', 'NFe Emitida': 'billed' };
   const newStatus = titleToStatus[targetColumnTitle];
   const oldStatus = draggedOrder.value.status;
-
   if (oldStatus === newStatus) return;
-
   const orderIndex = ordens.value.findIndex(o => o.id === draggedOrder.value.id);
-  if (orderIndex !== -1) {
-    ordens.value[orderIndex].status = newStatus;
-  }
-
-  try {
-    await api.patch(`/ordens/${draggedOrder.value.id}/status`, { status: newStatus });
-  } catch (e) {
-    if (orderIndex !== -1) {
-      ordens.value[orderIndex].status = oldStatus;
-    }
-    triggerNotify('Erro ao Mover', 'Não foi possível atualizar o status no servidor.', 'error');
+  if (orderIndex !== -1) { ordens.value[orderIndex].status = newStatus; }
+  try { await api.patch(`/ordens/${draggedOrder.value.id}/status`, { status: newStatus }); }
+  catch (e) {
+    if (orderIndex !== -1) { ordens.value[orderIndex].status = oldStatus; }
+    triggerNotify('Erro ao Mover', 'Não foi possível atualizar o status.', 'error');
   }
   draggedOrder.value = null;
 };
 
 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 
+const generateDanfePdf = (xmlString) => {
+  const parser = new DOMParser();
+  const xml = parser.parseFromString(xmlString, "application/xml");
+  const doc = new jsPDF();
+  
+  const nNF = xml.getElementsByTagName("nNF")[0]?.textContent || "---";
+  const serie = xml.getElementsByTagName("serie")[0]?.textContent || "1";
+  const chave = xml.getElementsByTagName("infNFe")[0]?.getAttribute("Id")?.replace("NFe", "") || "---";
+  const nProt = xml.getElementsByTagName("nProt")[0]?.textContent || "---";
+  const dhEmi = xml.getElementsByTagName("dhEmi")[0]?.textContent?.split("T")[0] || "---";
+  
+  doc.rect(10, 10, 190, 45);
+  doc.addImage(logoImg, 'PNG', 12, 15, 30, 25);
+  doc.setFontSize(10); doc.setFont("helvetica", "bold");
+  doc.text("LUCAS ABRAAO NERI DE MELO", 45, 20);
+  doc.setFont("helvetica", "normal");
+  doc.text("AVENIDA 21 DE ABRIL, SN-QD 05 LT 10/11", 45, 25);
+  doc.text("SETOR SOLON AMARAL - Iaciara, GO", 45, 30);
+  doc.text("CNPJ: 55.952.245/0001-00", 45, 35);
+  
+  doc.rect(140, 10, 60, 45);
+  doc.setFontSize(12); doc.text("DANFE", 160, 20);
+  doc.setFontSize(8); doc.text("Doc. Auxiliar da NF-e", 155, 25);
+  doc.text(`Nº ${nNF}`, 160, 35);
+  doc.text(`SÉRIE: ${serie}`, 160, 40);
+  
+  doc.rect(10, 56, 190, 15);
+  doc.setFontSize(7); doc.text("CHAVE DE ACESSO", 12, 60);
+  doc.setFontSize(9); doc.text(chave, 12, 65);
+  doc.setFontSize(7); doc.text("PROTOCOLO DE AUTORIZAÇÃO", 145, 60);
+  doc.setFontSize(9); doc.text(nProt, 145, 65);
+  
+  const dest = xml.getElementsByTagName("dest")[0];
+  doc.rect(10, 75, 190, 25);
+  doc.setFontSize(7); doc.text("DESTINATÁRIO / REMETENTE", 12, 78);
+  doc.setFontSize(9); doc.text(`NOME: ${dest.getElementsByTagName("xNome")[0]?.textContent}`, 12, 85);
+  doc.text(`CPF/CNPJ: ${dest.getElementsByTagName("CPF")[0]?.textContent || dest.getElementsByTagName("CNPJ")[0]?.textContent}`, 12, 90);
+  doc.text(`DATA EMISSÃO: ${dhEmi}`, 155, 85);
+  
+  const itens = Array.from(xml.getElementsByTagName("det")).map(det => {
+    const prod = det.getElementsByTagName("prod")[0];
+    return [
+      prod.getElementsByTagName("cProd")[0].textContent,
+      prod.getElementsByTagName("xProd")[0].textContent,
+      prod.getElementsByTagName("NCM")[0].textContent,
+      prod.getElementsByTagName("CFOP")[0].textContent,
+      prod.getElementsByTagName("uCom")[0].textContent,
+      prod.getElementsByTagName("qCom")[0].textContent,
+      formatCurrency(prod.getElementsByTagName("vUnCom")[0].textContent),
+      formatCurrency(prod.getElementsByTagName("vProd")[0].textContent)
+    ];
+  });
+  
+  autoTable(doc, {
+    startY: 105,
+    head: [['CÓD', 'DESCRIÇÃO', 'NCM', 'CFOP', 'UN', 'QTD', 'UNIT', 'TOTAL']],
+    body: itens,
+    theme: 'grid',
+    headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0], fontSize: 7 },
+    styles: { fontSize: 7 }
+  });
+  
+  doc.save(`DANFE_NFe_${nNF}.pdf`);
+};
+
+const emitNFe = async () => {
+  try {
+    const payload = {
+      cliente_id: form.value.cliente_id,
+      ordem_id: form.value.id,
+      valor_servico: form.value.valor_total,
+      discriminacao: form.value.items.map(i => `${i.quantidade}x ${i.descricao_item}`).join(' | ')
+    };
+    const res = await api.post('/nfe/emitir', payload);
+    if (res.protocolo_sefaz) { generateDanfePdf(res.protocolo_sefaz); }
+    await loadData(); closeModal(); triggerNotify('Sucesso', 'NF-e Autorizada e DANFE gerada.', 'success');
+  } catch (e) {
+    const errorMsg = e.response?.data?.detail || e.message;
+    triggerNotify('Erro na NF-e', errorMsg, 'error');
+  }
+};
+
 const emitReceipt = () => {
   const doc = new jsPDF();
   const client = dbClients.value.find(c => c.id === form.value.cliente_id) || { nome: 'Consumidor' };
-  const dateStr = new Date().toLocaleDateString('pt-BR');
-  
-  doc.setDrawColor(86, 166, 193);
-  doc.setLineWidth(0.5);
-  doc.rect(10, 10, 190, 40);
+  doc.setDrawColor(86, 166, 193); doc.setLineWidth(0.5); doc.rect(10, 10, 190, 40);
   doc.addImage(logoImg, 'PNG', 15, 15, 35, 30);
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇO', 60, 25);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('WK VIDROS - Forros e PVC', 60, 32);
+  doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇO', 60, 25);
+  doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+  doc.text('WK VIDROS - Lucas Abraão Neri de Melo', 60, 32);
   doc.text('CNPJ: 55.952.245/0001-00', 60, 37);
   doc.text('Avenida 21 de Abril - Telefone: (62) 99876-6290', 60, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.text('DADOS DO CLIENTE', 10, 60);
-  doc.line(10, 62, 200, 62);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`NOME: ${client.nome}`, 10, 68);
+  doc.setFont('helvetica', 'bold'); doc.text('DADOS DO CLIENTE', 10, 60); doc.line(10, 62, 200, 62);
+  doc.setFont('helvetica', 'normal'); doc.text(`NOME: ${client.nome}`, 10, 68);
   doc.text(`CPF/CNPJ: ${client.documento || '---'}`, 10, 73);
-  doc.text(`TELEFONE: ${client.telefone || '---'}`, 10, 78);
-  doc.text(`DATA DE EMISSÃO: ${dateStr}`, 140, 68);
   doc.text(`O.S. Nº: ${form.value.id}`, 140, 73);
-  
-  const rows = form.value.items.map(i => [
-    i.descricao_item, 
-    i.quantidade, 
-    formatCurrency(i.valor_unitario), 
-    formatCurrency(i.quantidade * i.valor_unitario)
-  ]);
-  
-  autoTable(doc, { 
-    startY: 85, 
-    head: [['Descrição', 'Qtd', 'Unitário', 'Total']], 
-    body: rows, 
-    theme: 'grid', 
-    headStyles: { fillColor: [86, 166, 193] } 
-  });
-  
+  const rows = form.value.items.map(i => [i.descricao_item, i.quantidade, formatCurrency(i.valor_unitario), formatCurrency(i.quantidade * i.valor_unitario)]);
+  autoTable(doc, { startY: 85, head: [['Descrição', 'Qtd', 'Unitário', 'Total']], body: rows, theme: 'grid', headStyles: { fillColor: [86, 166, 193] } });
   const finalY = doc.lastAutoTable.finalY + 10;
-  doc.setFont('helvetica', 'bold');
-  doc.text(`SUBTOTAL: ${formatCurrency(subtotalItems.value)}`, 140, finalY);
-  doc.text(`DESCONTO: ${formatCurrency(form.value.desconto)}`, 140, finalY + 5);
-  doc.setFontSize(12);
-  doc.text(`TOTAL PAGO: ${formatCurrency(form.value.valor_total)}`, 140, finalY + 12);
+  doc.setFont('helvetica', 'bold'); doc.text(`TOTAL PAGO: ${formatCurrency(form.value.valor_total)}`, 140, finalY + 12);
   doc.save(`Recibo_OS_${form.value.id}.pdf`);
 };
 </script>
 
 <style scoped>
+/* Estilos mantidos conforme original para não alterar layout */
 .board-container { padding: 24px; background: #f8fafc; min-height: 100vh; }
 .board-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; gap: 20px; flex-wrap: wrap; }
 .header-info h1 { font-size: 1.5rem; font-weight: 900; color: #1e293b; margin: 0; }
@@ -404,7 +414,6 @@ const emitReceipt = () => {
 .view-switch button { border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; background: transparent; color: #64748b; transition: 0.3s; }
 .view-switch button.active { background: #fff; color: #56a6c1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
 .btn-primary-action { background: #56a6c1; color: #fff; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 800; cursor: pointer; box-shadow: 0 10px 15px -3px rgba(86,166,193,0.3); }
-
 .kanban-container { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 20px; }
 .kanban-column { min-width: 300px; flex: 1; background: #f1f5f9; border-radius: 16px; display: flex; flex-direction: column; max-height: 80vh; }
 .column-title { padding: 16px; display: flex; align-items: center; gap: 10px; border-top: 4px solid; background: rgba(255,255,255,0.5); border-radius: 16px 16px 0 0; }
@@ -421,7 +430,6 @@ const emitReceipt = () => {
 .card-bottom { display: flex; justify-content: space-between; align-items: center; }
 .total-price { color: #56a6c1; font-weight: 900; font-size: 1.1rem; }
 .icon-drag { color: #e2e8f0; font-size: 1.2rem; }
-
 .table-view-wrapper { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #edf2f7; }
 .modern-grid { width: 100%; border-collapse: collapse; }
 .modern-grid th { text-align: left; padding: 16px; color: #94a3b8; font-size: 0.75rem; border-bottom: 1px solid #f1f5f9; text-transform: uppercase; font-weight: 800; }
@@ -434,22 +442,18 @@ const emitReceipt = () => {
 .status-tag.billed { background: #f3e8ff; color: #9333ea; }
 .btn-edit-small { background: #56a6c1; border: none; padding: 8px 16px; border-radius: 8px; color: #fff; font-weight: 800; cursor: pointer; font-size: 0.7rem; }
 .text-right { text-align: right; }
-
 .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
 .modal-card { background: #fff; width: 100%; max-width: 650px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); display: flex; flex-direction: column; max-height: 95vh; }
 .modal-header { padding: 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
 .modal-body { padding: 24px; overflow-y: auto; flex: 1; }
 .modal-footer { padding: 20px 24px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .close-x { background: transparent; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }
-
 .footer-actions-left, .footer-actions-right { display: flex; gap: 12px; }
-
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .field-group { display: flex; flex-direction: column; gap: 8px; }
 .full-width { grid-column: span 2; }
 .custom-input { background: #f8fafc; border: 1.5px solid #e2e8f0; padding: 12px; border-radius: 12px; font-size: 0.9rem; outline: none; transition: 0.2s; color: #1e293b; }
 .custom-input:focus { border-color: #56a6c1; background: #fff; box-shadow: 0 0 0 4px rgba(86,166,193,0.1); }
-
 .header-title { display: flex; align-items: center; gap: 12px; }
 .os-id-badge { background: #f1f5f9; color: #56a6c1; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 900; }
 .items-summary-section { margin: 20px 0; background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; }
@@ -465,7 +469,6 @@ const emitReceipt = () => {
 .fin-block strong { font-size: 1.1rem; color: #1e293b; }
 .fin-block.total strong { color: #56a6c1; font-size: 1.4rem; font-weight: 950; }
 .mini-input { background: #fff; border: 1px solid #cbd5e1; padding: 8px; border-radius: 8px; font-weight: 800; color: #ef4444; width: 100px; outline: none; }
-
 .btn-pri { background: #1e293b; color: #fff; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 800; cursor: pointer; transition: 0.2s; }
 .btn-pri:hover { background: #0f172a; }
 .btn-pri:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -473,7 +476,6 @@ const emitReceipt = () => {
 .btn-action-alt { background: #fff; border: 1px solid #e2e8f0; color: #56a6c1; padding: 10px 16px; border-radius: 10px; font-weight: 700; font-size: 0.7rem; cursor: pointer; transition: 0.2s; }
 .btn-action-alt:hover:not(:disabled) { background: #f8fafc; border-color: #56a6c1; }
 .btn-action-alt:disabled { opacity: 0.5; cursor: not-allowed; }
-
 .custom-alert-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); z-index: 2000; display: flex; align-items: center; justify-content: center; }
 .alert-box { background: #fff; padding: 32px; border-radius: 24px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
 .alert-icon { width: 50px; height: 50px; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; }
@@ -482,10 +484,8 @@ const emitReceipt = () => {
 .alert-content h4 { font-size: 1.2rem; color: #1e293b; margin-bottom: 10px; }
 .alert-content p { color: #64748b; margin-bottom: 24px; line-height: 1.5; }
 .btn-close-alert { width: 100%; background: #1e293b; color: #fff; border: none; padding: 12px; border-radius: 12px; font-weight: 800; cursor: pointer; }
-
 .discount-line { border-top: 1px dashed #e2e8f0; margin-top: 5px; }
 .text-discount { color: #ef4444 !important; font-weight: 900; }
-
 @media (max-width: 768px) {
   .modal-footer { flex-direction: column; height: auto; padding: 16px; gap: 16px; }
   .footer-actions-left, .footer-actions-right { width: 100%; justify-content: center; }

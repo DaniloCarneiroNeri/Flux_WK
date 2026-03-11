@@ -351,9 +351,9 @@ def get_cnpj_data(cnpj: str):
 @router.post("/nfe/emitir")
 def emitir_nota_fiscal(dados: EmissaoNotaRequest):
     try:
-        ARQUIVO_CERTIFICADO = os.getenv("CERT_PATH", "etc/secrets/SCASSISTENCIATECNICAAGRICOLALTDA39623105000132.pfx")
+        ARQUIVO_CERTIFICADO = os.getenv("CERT_PATH", "etc/secrets/LUCASABRAAONERIDEMELO55952245000100.pfx")
         SENHA_CERTIFICADO = "123456"
-        print(f"certificado: {ARQUIVO_CERTIFICADO}")
+        
         response_cliente = supabase.table("clientes").select("*").eq("id", dados.cliente_id).execute()
         if not response_cliente.data:
             raise HTTPException(status_code=404, detail="Cliente não encontrado")
@@ -366,73 +366,40 @@ def emitir_nota_fiscal(dados: EmissaoNotaRequest):
             if not codigo_ibge:
                 codigo_ibge = "5209903"
 
-        numero_rps = int(time.time())
-        data_hoje = datetime.now().strftime('%Y-%m-%d')
+        numero_nfe = int(time.time()) % 1000000000
+        data_emissao = datetime.now().strftime('%Y-%m-%dT%H:%M:%S-03:00')
 
-        xml_string = geradorNF.gerar_xml_centi(
-            rps_numero=numero_rps,
+        resultado_emissao = geradorNF.gerar_xml_centi(
+            rps_numero=numero_nfe,
             dados_cliente=cliente,
             discriminacao=dados.discriminacao,
             valor_total=dados.valor_servico,
-            data_emissao=data_hoje,
+            data_emissao=data_emissao,
             codigo_ibge_resolvido=codigo_ibge,
             caminho_pfx=ARQUIVO_CERTIFICADO,
             senha_pfx=SENHA_CERTIFICADO
         )
 
-        if not xml_string["sucesso"]:
-            print("XML INVÁLIDO — NÃO ENVIAR À CENTI:")
-            for e in xml_string["erros"]:
-                print(" -", e)
-                print(xml_string["xml"])
-        else:
-            print(xml_string["xml"]) 
-            xml = xml_string["xml"]
+        if not resultado_emissao["sucesso"]:
+            raise HTTPException(status_code=500, detail=f"Erro na geração/assinatura: {resultado_emissao['erros']}")
 
-        url_centi = "https://api.centi.com.br/nfe/gerar/go/iaciara"
+        sefaz_response = resultado_emissao["xml"]
 
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
-
-        payload_centi = {
-            "xml": xml,
-            "usuario": USUARIO_CENTI,
-            "senha": SENHA_CENTI
-        }
-
-        req_centi = requests.post(
-            url_centi,
-            json=payload_centi,
-            headers=headers,
-            timeout=30
-        )
-
-        response_text = req_centi.text
-
-        if "<html" in response_text.lower() or "request rejected" in response_text.lower():
-            raise HTTPException(status_code=403, detail="Firewall da Centi bloqueou a requisição (WAF)")
-
-        if req_centi.status_code != 200:
-            raise HTTPException(status_code=500, detail=f"Erro HTTP {req_centi.status_code}: {response_text}")
-
-        if "MensagemRetorno" in response_text and "<Numero>" not in response_text:
-            raise HTTPException(status_code=400, detail=f"Centi rejeitou: {response_text}")
-
-        if "<Numero>" not in response_text and "<Protocolo>" not in response_text:
-             raise HTTPException(status_code=500, detail=f"Resposta desconhecida: {response_text}")
+        if "<cStat>100</cStat>" not in sefaz_response:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"SEFAZ não autorizou a nota. Resposta: {sefaz_response}"
+            )
 
         supabase.table("ordens_servico").update({"status": "billed"}).eq("id", dados.ordem_id).execute()
 
         return {
-            "mensagem": "Nota Emitida com Sucesso",
-            "centi_response": response_text,
-            "ibge_utilizado": codigo_ibge
+            "mensagem": "Nota Fiscal de Produto Emitida e Autorizada",
+            "protocolo_sefaz": sefaz_response,
+            "chave_acesso": numero_nfe,
+            "ambiente": "Homologação"
         }
 
-    except requests.exceptions.Timeout:
-        raise HTTPException(status_code=504, detail="Timeout ao conectar com a Centi")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
