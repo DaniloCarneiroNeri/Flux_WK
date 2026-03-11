@@ -49,12 +49,16 @@ def gerar_chave_acesso(uf, data, cnpj, serie, numero):
 
 class NFeBuilder:
     def montar_nfe(self, dados):
-        chave, cnf, dv = gerar_chave_acesso("52", dados["data_emissao"], PRESTADOR_CNPJ, "1", dados["rps_numero"])
+        dh_emi = dados["data_emissao"]
+        if "T" not in dh_emi:
+            dh_emi += "T10:00:00-03:00"
+            
+        chave, cnf, dv = gerar_chave_acesso("52", dh_emi, PRESTADOR_CNPJ, "1", dados["rps_numero"])
         root = etree.Element(f"{{{NFE_NAMESPACE}}}NFe", nsmap=NS_MAP)
         infNFe = etree.SubElement(root, f"{{{NFE_NAMESPACE}}}infNFe", versao="4.00", Id=f"NFe{chave}")
         
         ide = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}ide")
-        for tag, val in [("cUF", "52"), ("cNF", cnf), ("natOp", "VENDAS"), ("mod", "55"), ("serie", "1"), ("nNF", str(dados["rps_numero"])), ("dhEmi", dados["data_emissao"]), ("tpNF", "1"), ("idDest", "1"), ("cMunFG", "5209903"), ("tpImp", "1"), ("tpEmis", "1"), ("cDV", str(dv)), ("tpAmb", "2"), ("finNFe", "1"), ("indFinal", "1"), ("indPres", "1"), ("indIntermed", "0"), ("procEmi", "0"), ("verProc", "1.0")]:
+        for tag, val in [("cUF", "52"), ("cNF", cnf), ("natOp", "VENDAS"), ("mod", "55"), ("serie", "1"), ("nNF", str(dados["rps_numero"])), ("dhEmi", dh_emi), ("tpNF", "1"), ("idDest", "1"), ("cMunFG", "5209903"), ("tpImp", "1"), ("tpEmis", "1"), ("cDV", str(dv)), ("tpAmb", "2"), ("finNFe", "1"), ("indFinal", "1"), ("indPres", "1"), ("indIntermed", "0"), ("procEmi", "0"), ("verProc", "1.0")]:
             etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}{tag}").text = val
         
         emit = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}emit")
@@ -95,9 +99,8 @@ class NFeBuilder:
         
         tot = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}total")
         ict = etree.SubElement(tot, f"{{{NFE_NAMESPACE}}}ICMSTot")
-        for f in ["vBC", "vICMS", "vICMSDeson", "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet", "vProd", "vFrete", "vSeg", "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS", "vCOFINS", "vOutro", "vNF"]:
+        for f in ["vBC", "vICMS", "vICMSDeson", "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet", "vProd", "vFrete", "vSeg", "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS", "vCOFINS", "vOutro", "vNF", "vTotTrib", "vFCPUFDest", "vICMSUFDest", "vICMSUFRemet"]:
             etree.SubElement(ict, f"{{{NFE_NAMESPACE}}}{f}").text = f"{dados['valor_total']:.2f}" if f in ["vProd", "vNF"] else "0.00"
-        etree.SubElement(ict, f"{{{NFE_NAMESPACE}}}vTotTrib").text = "0.00"
         
         transp = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}transp")
         etree.SubElement(transp, f"{{{NFE_NAMESPACE}}}modFrete").text = "9"
