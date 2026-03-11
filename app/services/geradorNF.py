@@ -153,35 +153,44 @@ class NFeBuilder:
         )
         
         etree.register_namespace("ds", "http://www.w3.org/2000/09/xmldsig#")
-        signed = signer.sign(self.root, key=key_pem, cert=cert_pem, reference_uri=f"#{nfe_id}")
+        signed_nfe = signer.sign(self.root, key=key_pem, cert=cert_pem, reference_uri=f"#{nfe_id}")
         
         envio = etree.Element(f"{{{NFE_NAMESPACE}}}enviNFe", nsmap=NS_MAP, versao="4.00")
         etree.SubElement(envio, f"{{{NFE_NAMESPACE}}}idLote").text = str(random.randint(1, 999999999999999))
         etree.SubElement(envio, f"{{{NFE_NAMESPACE}}}indSinc").text = "1"
-        envio.append(signed)
+        envio.append(signed_nfe)
         
-        etree.cleanup_namespaces(envio)
-        xml_final = etree.tostring(envio, encoding="utf-8", xml_declaration=False).decode("utf-8")
-        
-        print(f"DEBUG - XML de Envio: {xml_final}")
-
-        valido, erro_msg = self.validar_com_xsd(envio)
-        if not valido:
-            print(f"Erro de Schema Local: {erro_msg}")
-
         wsdl_ns = "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4"
-        soap = (f'<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-                f'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
-                f'xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">'
-                f'<soap12:Body><nfeDadosMsg xmlns="{wsdl_ns}">{xml_final}</nfeDadosMsg></soap12:Body>'
-                f'</soap12:Envelope>')
+        soap_ns = "http://www.w3.org/2003/05/soap-envelope"
         
+        envelope = etree.Element(f"{{{soap_ns}}}Envelope", nsmap={
+            'soap12': soap_ns,
+            'xsi': "http://www.w3.org/2001/XMLSchema-instance",
+            'xsd': "http://www.w3.org/2001/XMLSchema"
+        })
+        body = etree.SubElement(envelope, f"{{{soap_ns}}}Body")
+        nfe_dados_msg = etree.SubElement(body, f"{{{wsdl_ns}}}nfeDadosMsg")
+        nfe_dados_msg.append(envio)
+        
+        soap_final = etree.tostring(envelope, encoding="utf-8", xml_declaration=False).decode("utf-8")
+        
+        print(f"DEBUG - XML de Envio: {soap_final}")
+
         with tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as c, tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as k:
             c.write(cert_pem); k.write(key_pem); cp, kp = c.name, k.name
         
-        res = requests.post(URL_SEFAZ, data=soap, headers={'Content-Type': 'application/soap+xml; charset=utf-8'}, cert=(cp, kp), timeout=30)
-        os.unlink(cp); os.unlink(kp)
-        return res.text
+        try:
+            res = requests.post(
+                URL_SEFAZ, 
+                data=soap_final, 
+                headers={'Content-Type': 'application/soap+xml; charset=utf-8'}, 
+                cert=(cp, kp), 
+                timeout=30
+            )
+            return res.text
+        finally:
+            if os.path.exists(cp): os.unlink(cp)
+            if os.path.exists(kp): os.unlink(kp)
 
 def gerar_xml_centi(rps_numero, dados_cliente, discriminacao, valor_total, data_emissao, codigo_ibge_resolvido, caminho_pfx, senha_pfx):
     cert, key = carregar_certificado(caminho_pfx, senha_pfx)
