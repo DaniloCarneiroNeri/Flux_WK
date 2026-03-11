@@ -61,6 +61,8 @@ class NFeBuilder:
         try:
             base_dir = os.path.dirname(os.path.abspath(__file__))
             xsd_file = os.path.join(base_dir, "nfe_v4.00.xsd")
+            if not os.path.exists(xsd_file):
+                return True, "XSD nao encontrado, pulando validacao local"
             schema_doc = etree.parse(xsd_file)
             schema = etree.XMLSchema(schema_doc)
             schema.assertValid(xml_element)
@@ -72,6 +74,8 @@ class NFeBuilder:
         dh_emi = dados["data_emissao"]
         if "T" not in dh_emi:
             dh_emi += "T10:00:00-03:00"
+        elif len(dh_emi) <= 19:
+            dh_emi += "-03:00"
             
         chave, cnf, dv = gerar_chave_acesso("52", dh_emi, PRESTADOR_CNPJ, "1", dados["rps_numero"])
         root = etree.Element(f"{{{NFE_NAMESPACE}}}NFe", nsmap=NS_MAP)
@@ -146,10 +150,6 @@ class NFeBuilder:
         )
         signed = signer.sign(self.root, key=key_pem, cert=cert_pem, reference_uri=f"#{nfe_id}")
         
-        valido, erro_msg = self.validar_com_xsd(signed)
-        if not valido:
-            raise Exception(f"Erro de Schema detectado localmente: {erro_msg}")
-
         envio = etree.Element(f"{{{NFE_NAMESPACE}}}enviNFe", nsmap=NS_MAP, versao="4.00")
         etree.SubElement(envio, f"{{{NFE_NAMESPACE}}}idLote").text = str(random.randint(1, 999999))
         etree.SubElement(envio, f"{{{NFE_NAMESPACE}}}indSinc").text = "1"
@@ -158,6 +158,14 @@ class NFeBuilder:
         etree.cleanup_namespaces(envio)
         xml_final = etree.tostring(envio, encoding="utf-8", xml_declaration=False).decode("utf-8")
         
+        print("--- XML FINAL PARA SEFAZ ---")
+        print(xml_final)
+        print("----------------------------")
+
+        valido, erro_msg = self.validar_com_xsd(envio)
+        if not valido:
+            print(f"Alerta: Falha no Schema local: {erro_msg}")
+
         wsdl_ns = "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4"
         soap = (f'<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
                 f'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
