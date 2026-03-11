@@ -2,8 +2,6 @@ from lxml import etree
 import unicodedata
 import requests
 from signxml import XMLSigner, methods
-from cryptography.hazmat.primitives.serialization import pkcs12
-from cryptography.hazmat.primitives import serialization
 import base64
 import os
 import subprocess
@@ -80,14 +78,16 @@ class NFeBuilder:
         infNFe = etree.SubElement(root, f"{{{NFE_NAMESPACE}}}infNFe", versao="4.00", Id=f"NFe{chave}")
         
         ide = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}ide")
-        for tag, val in [("cUF", "52"), ("cNF", cnf), ("natOp", "VENDAS"), ("mod", "55"), ("serie", "1"), ("nNF", str(dados["rps_numero"])), ("dhEmi", dh_emi), ("tpNF", "1"), ("idDest", "1"), ("cMunFG", "5209903"), ("tpImp", "1"), ("tpEmis", "1"), ("cDV", str(dv)), ("tpAmb", "2"), ("finNFe", "1"), ("indFinal", "1"), ("indPres", "1"), ("indIntermed", "0"), ("procEmi", "0"), ("verProc", "1.0")]:
+        tags_ide = [("cUF", "52"), ("cNF", cnf), ("natOp", "VENDAS"), ("mod", "55"), ("serie", "1"), ("nNF", str(dados["rps_numero"])), ("dhEmi", dh_emi), ("tpNF", "1"), ("idDest", "1"), ("cMunFG", "5209903"), ("tpImp", "1"), ("tpEmis", "1"), ("cDV", str(dv)), ("tpAmb", "2"), ("finNFe", "1"), ("indFinal", "1"), ("indPres", "1"), ("indIntermed", "0"), ("procEmi", "0"), ("verProc", "1.0")]
+        for tag, val in tags_ide:
             etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}{tag}").text = val
         
         emit = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}emit")
         etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}CNPJ").text = PRESTADOR_CNPJ
         etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}xNome").text = "LUCAS ABRAAO NERI DE MELO"
         enderEmit = etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}enderEmit")
-        for tag, val in [("xLgr", "AV 21 DE ABRIL"), ("nro", "SN"), ("xBairro", "SOLON AMARAL"), ("cMun", "5209903"), ("xMun", "Iaciara"), ("UF", "GO"), ("CEP", "73920000"), ("cPais", "1058"), ("xPais", "BRASIL")]:
+        tags_ender = [("xLgr", "AV 21 DE ABRIL"), ("nro", "SN"), ("xBairro", "SOLON AMARAL"), ("cMun", "5209903"), ("xMun", "Iaciara"), ("UF", "GO"), ("CEP", "73920000"), ("cPais", "1058"), ("xPais", "BRASIL")]
+        for tag, val in tags_ender:
             etree.SubElement(enderEmit, f"{{{NFE_NAMESPACE}}}{tag}").text = val
         etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}IE").text = PRESTADOR_IE
         etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}CRT").text = "1"
@@ -96,13 +96,15 @@ class NFeBuilder:
         etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}{'CPF' if len(dados['documento_tomador'])==11 else 'CNPJ'}").text = dados["documento_tomador"]
         etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}xNome").text = normalizar_texto(dados["nome"][:60])
         enderDest = etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}enderDest")
-        for tag, val in [("xLgr", normalizar_texto(dados["endereco"])), ("nro", dados["numero"]), ("xBairro", normalizar_texto(dados["bairro"])), ("cMun", dados["codigo_ibge"]), ("xMun", "IACIARA"), ("UF", dados["uf"]), ("CEP", dados["cep"]), ("cPais", "1058"), ("xPais", "BRASIL")]:
+        tags_dest = [("xLgr", normalizar_texto(dados["endereco"])), ("nro", dados["numero"]), ("xBairro", normalizar_texto(dados["bairro"])), ("cMun", dados["codigo_ibge"]), ("xMun", "IACIARA"), ("UF", dados["uf"]), ("CEP", dados["cep"]), ("cPais", "1058"), ("xPais", "BRASIL")]
+        for tag, val in tags_dest:
             etree.SubElement(enderDest, f"{{{NFE_NAMESPACE}}}{tag}").text = val
         etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}indIEDest").text = "9"
         
         det = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}det", nItem="1")
         prod = etree.SubElement(det, f"{{{NFE_NAMESPACE}}}prod")
-        for tag, val in [("cProd", "000"), ("cEAN", "SEM GTIN"), ("xProd", "FORRO PVC 10MM"), ("NCM", "39162000"), ("CFOP", "5102"), ("uCom", "MT"), ("qCom", "28.0000"), ("vUnCom", "50.0000"), ("vProd", f"{dados['valor_total']:.2f}"), ("cEANTrib", "SEM GTIN"), ("uTrib", "MT"), ("qTrib", "28.0000"), ("vUnTrib", "50.0000"), ("indTot", "1")]:
+        tags_prod = [("cProd", "000"), ("cEAN", "SEM GTIN"), ("xProd", "FORRO PVC 10MM"), ("NCM", "39162000"), ("CFOP", "5102"), ("uCom", "MT"), ("qCom", "28.0000"), ("vUnCom", "50.0000"), ("vProd", f"{dados['valor_total']:.2f}"), ("cEANTrib", "SEM GTIN"), ("uTrib", "MT"), ("qTrib", "28.0000"), ("vUnTrib", "50.0000"), ("indTot", "1")]
+        for tag, val in tags_prod:
             etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}{tag}").text = val
         
         imp = etree.SubElement(det, f"{{{NFE_NAMESPACE}}}imposto")
@@ -111,21 +113,14 @@ class NFeBuilder:
         etree.SubElement(sn, f"{{{NFE_NAMESPACE}}}orig").text = "0"
         etree.SubElement(sn, f"{{{NFE_NAMESPACE}}}CSOSN").text = "102"
         
-        pis = etree.SubElement(imp, f"{{{NFE_NAMESPACE}}}PIS")
-        pis_nt = etree.SubElement(pis, f"{{{NFE_NAMESPACE}}}PISNT")
-        etree.SubElement(pis_nt, f"{{{NFE_NAMESPACE}}}CST").text = "07"
-        
-        cofins = etree.SubElement(imp, f"{{{NFE_NAMESPACE}}}COFINS")
-        cofins_nt = etree.SubElement(cofins, f"{{{NFE_NAMESPACE}}}COFINSNT")
-        etree.SubElement(cofins_nt, f"{{{NFE_NAMESPACE}}}CST").text = "07"
+        for imp_tag in ["PIS", "COFINS"]:
+            sub_imp = etree.SubElement(imp, f"{{{NFE_NAMESPACE}}}{imp_tag}")
+            sub_nt = etree.SubElement(sub_imp, f"{{{NFE_NAMESPACE}}}{imp_tag}NT")
+            etree.SubElement(sub_nt, f"{{{NFE_NAMESPACE}}}CST").text = "07"
         
         tot = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}total")
         ict = etree.SubElement(tot, f"{{{NFE_NAMESPACE}}}ICMSTot")
-        campos_tot = [
-            "vBC", "vICMS", "vICMSDeson", "vFCPUFDest", "vICMSUFDest", "vICMSUFRemet",
-            "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet", "vProd", "vFrete", "vSeg",
-            "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS", "vCOFINS", "vOutro", "vNF", "vTotTrib"
-        ]
+        campos_tot = ["vBC", "vICMS", "vICMSDeson", "vFCPUFDest", "vICMSUFDest", "vICMSUFRemet", "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet", "vProd", "vFrete", "vSeg", "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS", "vCOFINS", "vOutro", "vNF", "vTotTrib"]
         for f in campos_tot:
             val = f"{dados['valor_total']:.2f}" if f in ["vProd", "vNF"] else "0.00"
             etree.SubElement(ict, f"{{{NFE_NAMESPACE}}}{f}").text = val
@@ -156,22 +151,25 @@ class NFeBuilder:
             raise Exception(f"Erro de Schema detectado localmente: {erro_msg}")
 
         envio = etree.Element(f"{{{NFE_NAMESPACE}}}enviNFe", nsmap=NS_MAP, versao="4.00")
-        etree.SubElement(envio, f"{{{NFE_NAMESPACE}}}idLote").text = "1"
+        etree.SubElement(envio, f"{{{NFE_NAMESPACE}}}idLote").text = str(random.randint(1, 999999))
         etree.SubElement(envio, f"{{{NFE_NAMESPACE}}}indSinc").text = "1"
         envio.append(signed)
         
-        xml_final = etree.tostring(envio, encoding="unicode")
+        etree.cleanup_namespaces(envio)
+        xml_final = etree.tostring(envio, encoding="utf-8", xml_declaration=False).decode("utf-8")
+        
         wsdl_ns = "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4"
-        soap = f'<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><nfeDadosMsg xmlns="{wsdl_ns}">{xml_final}</nfeDadosMsg></soap12:Body></soap12:Envelope>'
+        soap = (f'<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+                f'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
+                f'xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">'
+                f'<soap12:Body><nfeDadosMsg xmlns="{wsdl_ns}">{xml_final}</nfeDadosMsg></soap12:Body>'
+                f'</soap12:Envelope>')
         
         with tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as c, tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as k:
-            c.write(cert_pem)
-            k.write(key_pem)
-            cp, kp = c.name, k.name
+            c.write(cert_pem); k.write(key_pem); cp, kp = c.name, k.name
         
         res = requests.post(URL_SEFAZ, data=soap, headers={'Content-Type': 'application/soap+xml; charset=utf-8'}, cert=(cp, kp), timeout=30)
-        os.unlink(cp)
-        os.unlink(kp)
+        os.unlink(cp); os.unlink(kp)
         return res.text
 
 def gerar_xml_centi(rps_numero, dados_cliente, discriminacao, valor_total, data_emissao, codigo_ibge_resolvido, caminho_pfx, senha_pfx):
