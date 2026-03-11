@@ -29,8 +29,18 @@ def carregar_certificado(caminho_dummy, senha):
         with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False) as temp_pfx:
             temp_pfx.write(pfx_data)
             temp_pfx_path = temp_pfx.name
-        cert_pem = subprocess.run(["openssl", "pkcs12", "-in", temp_pfx_path, "-nokeys", "-passin", f"pass:{senha}"], capture_output=True, check=True).stdout
-        key_pem = subprocess.run(["openssl", "pkcs12", "-in", temp_pfx_path, "-nocerts", "-nodes", "-passin", f"pass:{senha}"], capture_output=True, check=True).stdout
+        
+        cert_raw = subprocess.run(["openssl", "pkcs12", "-in", temp_pfx_path, "-nokeys", "-passin", f"pass:{senha}"], capture_output=True, check=True).stdout
+        inicio_cert = cert_raw.find(b"-----BEGIN CERTIFICATE-----")
+        fim_cert = cert_raw.find(b"-----END CERTIFICATE-----") + 25
+        cert_pem = cert_raw[inicio_cert:fim_cert]
+
+        key_raw = subprocess.run(["openssl", "pkcs12", "-in", temp_pfx_path, "-nocerts", "-nodes", "-passin", f"pass:{senha}"], capture_output=True, check=True).stdout
+        inicio_key = key_raw.find(b"-----BEGIN")
+        fim_key = key_raw.find(b"-----END", inicio_key)
+        fim_key = key_raw.find(b"-----", fim_key + 5) + 5
+        key_pem = key_raw[inicio_key:fim_key]
+        
         os.unlink(temp_pfx_path)
         return cert_pem, key_pem
     except: return None, None
