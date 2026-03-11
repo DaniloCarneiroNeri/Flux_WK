@@ -167,3 +167,15 @@ def gerar_xml_centi(rps_numero, dados_cliente, discriminacao, valor_total, data_
         resultado = builder.assinar_e_transmitir(cert, key, nfe_id)
         return {"sucesso": True, "xml": resultado}
     except Exception as e: return {"sucesso": False, "erros": [str(e)]}
+
+def buscar_codigo_ibge(uf, nome_cidade):
+    if not uf or not nome_cidade: return None
+    try:
+        url = f"https://servicodados.ibge.gov.br/api/v1/localidades/estados/{uf}/municipios"
+        res = requests.get(url, timeout=5)
+        if res.status_code == 200:
+            busca = normalizar_texto(nome_cidade).lower()
+            for item in res.json():
+                if normalizar_texto(item['nome']).lower() == busca: return str(item['id'])
+    except: pass
+    return None
