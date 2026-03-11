@@ -192,7 +192,7 @@ class NFeBuilder:
                 cert=(cp, kp), 
                 timeout=30
             )
-            return res.text, soap_final
+            return res.text
         finally:
             if os.path.exists(cp): os.unlink(cp)
             if os.path.exists(kp): os.unlink(kp)
@@ -216,8 +216,8 @@ def gerar_xml_centi(rps_numero, dados_cliente, discriminacao, valor_total, data_
         "cep": dados_cliente.get("cep", "").replace("-", "").strip()
     })
     try:
-        resultado, xml_envio = builder.assinar_e_transmitir(cert, key, nfe_id)
-        return {"sucesso": True, "xml_resposta": resultado, "xml_enviado": xml_envio}
+        resultado = builder.assinar_e_transmitir(cert, key, nfe_id)
+        return {"sucesso": True, "xml": resultado}
     except Exception as e: return {"sucesso": False, "erros": [str(e)]}
 
 def buscar_codigo_ibge(uf, nome_cidade):
