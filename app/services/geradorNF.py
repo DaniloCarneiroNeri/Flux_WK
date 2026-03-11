@@ -48,6 +48,16 @@ def gerar_chave_acesso(uf, data, cnpj, serie, numero):
     return f"{chave_parcial}{dv}", cnf_random, dv
 
 class NFeBuilder:
+    def validar_com_xsd(self, xml_element, xsd_path="nfe_v4.00.xsd"):
+        try:
+            with open(xsd_path, 'rb') as f:
+                schema_root = etree.XML(f.read())
+                schema = etree.XMLSchema(schema_root)
+            schema.assertValid(xml_element)
+            return True, ""
+        except Exception as e:
+            return False, str(e)
+
     def montar_nfe(self, dados):
         dh_emi = dados["data_emissao"]
         if "T" not in dh_emi:
@@ -99,8 +109,10 @@ class NFeBuilder:
         
         tot = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}total")
         ict = etree.SubElement(tot, f"{{{NFE_NAMESPACE}}}ICMSTot")
-        for f in ["vBC", "vICMS", "vICMSDeson", "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet", "vProd", "vFrete", "vSeg", "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS", "vCOFINS", "vOutro", "vNF", "vTotTrib", "vFCPUFDest", "vICMSUFDest", "vICMSUFRemet"]:
-            etree.SubElement(ict, f"{{{NFE_NAMESPACE}}}{f}").text = f"{dados['valor_total']:.2f}" if f in ["vProd", "vNF"] else "0.00"
+        campos_tot = ["vBC", "vICMS", "vICMSDeson", "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet", "vProd", "vFrete", "vSeg", "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS", "vCOFINS", "vOutro", "vNF", "vTotTrib", "vFCPUFDest", "vICMSUFDest", "vICMSUFRemet"]
+        for f in campos_tot:
+            val = f"{dados['valor_total']:.2f}" if f in ["vProd", "vNF"] else "0.00"
+            etree.SubElement(ict, f"{{{NFE_NAMESPACE}}}{f}").text = val
         
         transp = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}transp")
         etree.SubElement(transp, f"{{{NFE_NAMESPACE}}}modFrete").text = "9"
@@ -115,9 +127,13 @@ class NFeBuilder:
         return infNFe.get("Id")
 
     def assinar_e_transmitir(self, cert_pem, key_pem, nfe_id):
-        signer = XMLSigner(method=methods.enveloped, signature_algorithm="rsa-sha256", digest_algorithm="sha256", c14n_algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315")
+        signer = XMLSigner(method=methods.enveloped, signature_algorithm="rsa-sha256", digest_algorithm="sha256")
         signed = signer.sign(self.root, key=key_pem, cert=cert_pem, reference_uri=f"#{nfe_id}")
         
+        valido, erro_msg = self.validar_com_xsd(signed)
+        if not valido:
+            raise Exception(f"Erro de Schema detectado localmente: {erro_msg}")
+
         envio = etree.Element(f"{{{NFE_NAMESPACE}}}enviNFe", nsmap=NS_MAP, versao="4.00")
         etree.SubElement(envio, f"{{{NFE_NAMESPACE}}}idLote").text = "1"
         etree.SubElement(envio, f"{{{NFE_NAMESPACE}}}indSinc").text = "1"
