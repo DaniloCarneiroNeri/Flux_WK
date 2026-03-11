@@ -27,7 +27,8 @@ def carregar_certificado(caminho_dummy, senha):
     try:
         pfx_data = base64.b64decode(b64_data)
         with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False) as temp_pfx:
-            temp_pfx.write(pfx_data); temp_pfx_path = temp_pfx.name
+            temp_pfx.write(pfx_data)
+            temp_pfx_path = temp_pfx.name
         cert_pem = subprocess.run(["openssl", "pkcs12", "-in", temp_pfx_path, "-nokeys", "-passin", f"pass:{senha}"], capture_output=True, check=True).stdout
         key_pem = subprocess.run(["openssl", "pkcs12", "-in", temp_pfx_path, "-nocerts", "-nodes", "-passin", f"pass:{senha}"], capture_output=True, check=True).stdout
         os.unlink(temp_pfx_path)
@@ -52,7 +53,6 @@ class NFeBuilder:
         try:
             base_dir = os.path.dirname(os.path.abspath(__file__))
             xsd_file = os.path.join(base_dir, "nfe_v4.00.xsd")
-            
             schema_doc = etree.parse(xsd_file)
             schema = etree.XMLSchema(schema_doc)
             schema.assertValid(xml_element)
@@ -133,7 +133,12 @@ class NFeBuilder:
         return infNFe.get("Id")
 
     def assinar_e_transmitir(self, cert_pem, key_pem, nfe_id):
-        signer = XMLSigner(method=methods.enveloped, signature_algorithm="rsa-sha256", digest_algorithm="sha256")
+        signer = XMLSigner(
+            method=methods.enveloped,
+            signature_algorithm="rsa-sha256",
+            digest_algorithm="sha256",
+            c14n_algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
+        )
         signed = signer.sign(self.root, key=key_pem, cert=cert_pem, reference_uri=f"#{nfe_id}")
         
         valido, erro_msg = self.validar_com_xsd(signed)
@@ -150,10 +155,13 @@ class NFeBuilder:
         soap = f'<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><nfeDadosMsg xmlns="{wsdl_ns}">{xml_final}</nfeDadosMsg></soap12:Body></soap12:Envelope>'
         
         with tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as c, tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as k:
-            c.write(cert_pem); k.write(key_pem); cp, kp = c.name, k.name
+            c.write(cert_pem)
+            k.write(key_pem)
+            cp, kp = c.name, k.name
         
         res = requests.post(URL_SEFAZ, data=soap, headers={'Content-Type': 'application/soap+xml; charset=utf-8'}, cert=(cp, kp), timeout=30)
-        os.unlink(cp); os.unlink(kp)
+        os.unlink(cp)
+        os.unlink(kp)
         return res.text
 
 def gerar_xml_centi(rps_numero, dados_cliente, discriminacao, valor_total, data_emissao, codigo_ibge_resolvido, caminho_pfx, senha_pfx):
