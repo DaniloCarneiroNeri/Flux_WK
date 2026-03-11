@@ -23,154 +23,88 @@ def normalizar_texto(texto):
 
 def carregar_certificado(caminho_dummy, senha):
     b64_data = os.getenv("CERTIFICADO_BASE64")
-    if not b64_data:
-        return None, None
+    if not b64_data: return None, None
     try:
         pfx_data = base64.b64decode(b64_data)
         with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False) as temp_pfx:
-            temp_pfx.write(pfx_data)
-            temp_pfx_path = temp_pfx.name
-        cmd_cert = ["openssl", "pkcs12", "-in", temp_pfx_path, "-nokeys", "-passin", f"pass:{senha}"]
-        cert_pem = subprocess.run(cmd_cert, capture_output=True, check=True).stdout
-        cmd_key = ["openssl", "pkcs12", "-in", temp_pfx_path, "-nocerts", "-nodes", "-passin", f"pass:{senha}"]
-        key_pem = subprocess.run(cmd_key, capture_output=True, check=True).stdout
+            temp_pfx.write(pfx_data); temp_pfx_path = temp_pfx.name
+        cert_pem = subprocess.run(["openssl", "pkcs12", "-in", temp_pfx_path, "-nokeys", "-passin", f"pass:{senha}"], capture_output=True, check=True).stdout
+        key_pem = subprocess.run(["openssl", "pkcs12", "-in", temp_pfx_path, "-nocerts", "-nodes", "-passin", f"pass:{senha}"], capture_output=True, check=True).stdout
         os.unlink(temp_pfx_path)
         return cert_pem, key_pem
-    except:
-        return None, None
+    except: return None, None
 
 def calcular_dv(chave_43):
     pesos = [2, 3, 4, 5, 6, 7, 8, 9]
-    soma = 0
-    for i, char in enumerate(reversed(chave_43)):
-        soma += int(char) * pesos[i % len(pesos)]
+    soma = sum(int(char) * pesos[i % len(pesos)] for i, char in enumerate(reversed(chave_43)))
     resto = soma % 11
     return 0 if resto < 2 else 11 - resto
 
 def gerar_chave_acesso(uf, data, cnpj, serie, numero):
     ano_mes = data[2:4] + data[5:7]
-    modelo = "55"
-    serie_format = str(serie).zfill(3)
-    numero_format = str(numero).zfill(9)
-    tipo_emissao = "1"
-    codigo_num = str(random.randint(10000000, 99999999))
-    chave_parcial = f"{uf}{ano_mes}{cnpj}{modelo}{serie_format}{numero_format}{tipo_emissao}{codigo_num}"
+    chave_parcial = f"{uf}{ano_mes}{cnpj}55{str(serie).zfill(3)}{str(numero).zfill(9)}1{str(random.randint(10000000, 99999999))}"
     dv = calcular_dv(chave_parcial)
-    return f"{chave_parcial}{dv}", codigo_num, dv
+    return f"{chave_parcial}{dv}", chave_parcial[-9:-1], dv
 
 class NFeBuilder:
-    def __init__(self):
-        self.root = None
-
     def montar_nfe(self, dados):
         chave, cnf, dv = gerar_chave_acesso("52", dados["data_emissao"], PRESTADOR_CNPJ, "1", dados["rps_numero"])
-        self.root = etree.Element(f"{{{NFE_NAMESPACE}}}NFe", nsmap=NS_MAP)
-        infNFe = etree.SubElement(self.root, f"{{{NFE_NAMESPACE}}}infNFe")
-        infNFe.set("versao", "4.00")
-        infNFe.set("Id", f"NFe{chave}")
+        root = etree.Element(f"{{{NFE_NAMESPACE}}}NFe", nsmap=NS_MAP)
+        infNFe = etree.SubElement(root, f"{{{NFE_NAMESPACE}}}infNFe", versao="4.00", Id=f"NFe{chave}")
         ide = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}ide")
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}cUF").text = "52"
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}cNF").text = cnf
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}natOp").text = "VENDAS"
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}mod").text = "55"
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}serie").text = "1"
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}nNF").text = str(dados["rps_numero"])
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}dhEmi").text = dados["data_emissao"]
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}tpNF").text = "1"
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}idDest").text = "1"
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}cMunFG").text = "5209707"
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}tpImp").text = "1"
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}tpEmis").text = "1"
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}cDV").text = str(dv)
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}tpAmb").text = "2"
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}finNFe").text = "1"
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}indFinal").text = "1"
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}indPres").text = "1"
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}procEmi").text = "0"
-        etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}verProc").text = "1.0"
+        for tag, val in [("cUF", "52"), ("cNF", cnf), ("natOp", "VENDAS"), ("mod", "55"), ("serie", "1"), ("nNF", str(dados["rps_numero"])), ("dhEmi", dados["data_emissao"]), ("tpNF", "1"), ("idDest", "1"), ("cMunFG", "5209903"), ("tpImp", "1"), ("tpEmis", "1"), ("cDV", str(dv)), ("tpAmb", "2"), ("finNFe", "1"), ("indFinal", "1"), ("indPres", "1"), ("procEmi", "0"), ("verProc", "1.0")]:
+            etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}{tag}").text = val
         emit = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}emit")
         etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}CNPJ").text = PRESTADOR_CNPJ
-        etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}xNome").text = "WILMANIO VIEIRA DE MELO-ME"
+        etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}xNome").text = "LUCAS ABRAAO NERI DE MELO"
+        enderEmit = etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}enderEmit")
+        for tag, val in [("xLgr", "AV 21 DE ABRIL"), ("n", "SN"), ("xBairro", "SOLON AMARAL"), ("cMun", "5209903"), ("xMun", "Iaciara"), ("UF", "GO"), ("CEP", "73920000")]:
+            etree.SubElement(enderEmit, f"{{{NFE_NAMESPACE}}}{tag}").text = val
         etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}IE").text = PRESTADOR_IE
         etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}CRT").text = "1"
-        enderEmit = etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}enderEmit")
-        etree.SubElement(enderEmit, f"{{{NFE_NAMESPACE}}}xLgr").text = "AV 21 DE ABRIL"
-        etree.SubElement(enderEmit, f"{{{NFE_NAMESPACE}}}n").text = "01"
-        etree.SubElement(enderEmit, f"{{{NFE_NAMESPACE}}}xBairro").text = "SOLON AMARAL"
-        etree.SubElement(enderEmit, f"{{{NFE_NAMESPACE}}}cMun").text = "5209707"
-        etree.SubElement(enderEmit, f"{{{NFE_NAMESPACE}}}xMun").text = "Iaciara"
-        etree.SubElement(enderEmit, f"{{{NFE_NAMESPACE}}}UF").text = "GO"
-        etree.SubElement(enderEmit, f"{{{NFE_NAMESPACE}}}CEP").text = "73920000"
         dest = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}dest")
-        etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}CPF").text = dados["documento_tomador"]
-        etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}xNome").text = dados["nome"]
-        etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}indIEDest").text = "9"
+        etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}{'CPF' if len(dados['documento_tomador'])==11 else 'CNPJ'}").text = dados["documento_tomador"]
+        etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}xNome").text = normalizar_texto(dados["nome"][:60])
         enderDest = etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}enderDest")
-        etree.SubElement(enderDest, f"{{{NFE_NAMESPACE}}}xLgr").text = dados["endereco"]
-        etree.SubElement(enderDest, f"{{{NFE_NAMESPACE}}}n").text = dados["numero"]
-        etree.SubElement(enderDest, f"{{{NFE_NAMESPACE}}}xBairro").text = dados["bairro"]
-        etree.SubElement(enderDest, f"{{{NFE_NAMESPACE}}}cMun").text = dados["codigo_ibge"]
-        etree.SubElement(enderDest, f"{{{NFE_NAMESPACE}}}xMun").text = "IACIARA"
-        etree.SubElement(enderDest, f"{{{NFE_NAMESPACE}}}UF").text = dados["uf"]
-        etree.SubElement(enderDest, f"{{{NFE_NAMESPACE}}}CEP").text = dados["cep"]
-        det = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}det")
-        det.set("nItem", "1")
+        for tag, val in [("xLgr", normalizar_texto(dados["endereco"])), ("n", dados["numero"]), ("xBairro", normalizar_texto(dados["bairro"])), ("cMun", dados["codigo_ibge"]), ("xMun", "IACIARA"), ("UF", dados["uf"]), ("CEP", dados["cep"])]:
+            etree.SubElement(enderDest, f"{{{NFE_NAMESPACE}}}{tag}").text = val
+        etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}indIEDest").text = "9"
+        det = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}det", nItem="1")
         prod = etree.SubElement(det, f"{{{NFE_NAMESPACE}}}prod")
-        etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}cProd").text = "000"
-        etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}cEAN").text = "SEM GTIN"
-        etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}xProd").text = "FORRO PVC 10MM"
-        etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}NCM").text = "39162000"
-        etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}CFOP").text = "5102"
-        etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}uCom").text = "MT"
-        etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}qCom").text = "28.0000"
-        etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}vUnCom").text = "50.0000"
-        etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}vProd").text = f"{dados['valor_total']:.2f}"
-        etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}cEANTrib").text = "SEM GTIN"
-        etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}uTrib").text = "MT"
-        etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}qTrib").text = "28.0000"
-        etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}vUnTrib").text = "50.0000"
-        etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}indTot").text = "1"
-        imposto = etree.SubElement(det, f"{{{NFE_NAMESPACE}}}imposto")
-        icms = etree.SubElement(imposto, f"{{{NFE_NAMESPACE}}}ICMS")
-        icms_sn = etree.SubElement(icms, f"{{{NFE_NAMESPACE}}}ICMSSN102")
-        etree.SubElement(icms_sn, f"{{{NFE_NAMESPACE}}}orig").text = "0"
-        etree.SubElement(icms_sn, f"{{{NFE_NAMESPACE}}}CSOSN").text = "102"
-        total = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}total")
-        icms_tot = etree.SubElement(total, f"{{{NFE_NAMESPACE}}}ICMSTot")
+        for tag, val in [("cProd", "000"), ("cEAN", "SEM GTIN"), ("xProd", "FORRO PVC 10MM"), ("NCM", "39162000"), ("CFOP", "5102"), ("uCom", "MT"), ("qCom", "28.0000"), ("vUnCom", "50.0000"), ("vProd", f"{dados['valor_total']:.2f}"), ("cEANTrib", "SEM GTIN"), ("uTrib", "MT"), ("qTrib", "28.0000"), ("vUnTrib", "50.0000"), ("indTot", "1")]:
+            etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}{tag}").text = val
+        imp = etree.SubElement(det, f"{{{NFE_NAMESPACE}}}imposto")
+        icms = etree.SubElement(imp, f"{{{NFE_NAMESPACE}}}ICMS")
+        sn = etree.SubElement(icms, f"{{{NFE_NAMESPACE}}}ICMSSN102")
+        etree.SubElement(sn, f"{{{NFE_NAMESPACE}}}orig").text = "0"
+        etree.SubElement(sn, f"{{{NFE_NAMESPACE}}}CSOSN").text = "102"
+        tot = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}total")
+        ict = etree.SubElement(tot, f"{{{NFE_NAMESPACE}}}ICMSTot")
         for f in ["vBC", "vICMS", "vICMSDeson", "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet", "vProd", "vFrete", "vSeg", "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS", "vCOFINS", "vOutro", "vNF"]:
-            etree.SubElement(icms_tot, f"{{{NFE_NAMESPACE}}}{f}").text = f"{dados['valor_total']:.2f}" if f in ["vProd", "vNF"] else "0.00"
+            etree.SubElement(ict, f"{{{NFE_NAMESPACE}}}{f}").text = f"{dados['valor_total']:.2f}" if f in ["vProd", "vNF"] else "0.00"
         transp = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}transp")
         etree.SubElement(transp, f"{{{NFE_NAMESPACE}}}modFrete").text = "9"
         pag = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}pag")
-        detPag = etree.SubElement(pag, f"{{{NFE_NAMESPACE}}}detPag")
-        etree.SubElement(detPag, f"{{{NFE_NAMESPACE}}}tPag").text = "01"
-        etree.SubElement(detPag, f"{{{NFE_NAMESPACE}}}vPag").text = f"{dados['valor_total']:.2f}"
+        dpag = etree.SubElement(pag, f"{{{NFE_NAMESPACE}}}detPag")
+        etree.SubElement(dpag, f"{{{NFE_NAMESPACE}}}tPag").text = "01"
+        etree.SubElement(dpag, f"{{{NFE_NAMESPACE}}}vPag").text = f"{dados['valor_total']:.2f}"
+        self.root = root
         return infNFe.get("Id")
 
     def assinar_e_transmitir(self, cert_pem, key_pem, nfe_id):
         signer = XMLSigner(method=methods.enveloped, signature_algorithm="rsa-sha1", digest_algorithm="sha1", c14n_algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315")
-        signed_nfe = signer.sign(self.root, key=key_pem, cert=cert_pem, reference_uri=f"#{nfe_id}")
-        xml_assinado = etree.tostring(signed_nfe, encoding="unicode")
-        
+        signed = signer.sign(self.root, key=key_pem, cert=cert_pem, reference_uri=f"#{nfe_id}")
         envio = etree.Element(f"{{{NFE_NAMESPACE}}}enviNFe", nsmap=NS_MAP, versao="4.00")
         etree.SubElement(envio, f"{{{NFE_NAMESPACE}}}idLote").text = "1"
         etree.SubElement(envio, f"{{{NFE_NAMESPACE}}}indSinc").text = "1"
-        envio.append(signed_nfe)
+        envio.append(signed)
         xml_final = etree.tostring(envio, encoding="unicode")
-
-        soap = f"""<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-            <soap12:Body>
-                <nfeDadosMsg xmlns="{NFE_NAMESPACE}">{xml_final}</nfeDadosMsg>
-            </soap12:Body>
-        </soap12:Envelope>"""
-
-        with tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as c_file, tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as k_file:
-            c_file.write(cert_pem); k_file.write(key_pem)
-            c_path = c_file.name; k_path = k_file.name
-        
-        response = requests.post(URL_SEFAZ, data=soap, headers={'Content-Type': 'application/soap+xml; charset=utf-8'}, cert=(c_path, k_path), timeout=30)
-        os.unlink(c_path); os.unlink(k_path)
-        return response.text
+        soap = f'<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><nfeDadosMsg xmlns="{NFE_NAMESPACE}">{xml_final}</nfeDadosMsg></soap12:Body></soap12:Envelope>'
+        with tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as c, tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as k:
+            c.write(cert_pem); k.write(key_pem); cp, kp = c.name, k.name
+        res = requests.post(URL_SEFAZ, data=soap, headers={'Content-Type': 'application/soap+xml; charset=utf-8'}, cert=(cp, kp), timeout=30)
+        os.unlink(cp); os.unlink(kp)
+        return res.text
 
 def gerar_xml_centi(rps_numero, dados_cliente, discriminacao, valor_total, data_emissao, codigo_ibge_resolvido, caminho_pfx, senha_pfx):
     cert, key = carregar_certificado(caminho_pfx, senha_pfx)
@@ -179,10 +113,9 @@ def gerar_xml_centi(rps_numero, dados_cliente, discriminacao, valor_total, data_
     builder = NFeBuilder()
     nfe_id = builder.montar_nfe({"rps_numero": rps_numero, "valor_total": valor_total, "data_emissao": data_emissao, "codigo_ibge": codigo_ibge_resolvido, "documento_tomador": doc, "nome": dados_cliente.get("nome"), "endereco": dados_cliente.get("endereco"), "numero": dados_cliente.get("numero") or "SN", "bairro": dados_cliente.get("bairro"), "uf": dados_cliente.get("uf"), "cep": dados_cliente.get("cep", "").replace("-", "")})
     try:
-        resultado_sefaz = builder.assinar_e_transmitir(cert, key, nfe_id)
-        return {"sucesso": True, "xml": resultado_sefaz}
-    except Exception as e:
-        return {"sucesso": False, "erros": [str(e)]}
+        resultado = builder.assinar_e_transmitir(cert, key, nfe_id)
+        return {"sucesso": True, "xml": resultado}
+    except Exception as e: return {"sucesso": False, "erros": [str(e)]}
 
 def buscar_codigo_ibge(uf, nome_cidade):
     if not uf or not nome_cidade: return None
