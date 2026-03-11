@@ -26,14 +26,16 @@ RUN apt-get update && apt-get install -y \
 
 RUN sed -i 's/SECLEVEL=2/SECLEVEL=1/g' /etc/ssl/openssl.cnf
 
-COPY api/services/*.xsd /app/api/services/
-
 WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+
+RUN mkdir -p /app/api/services/
+
+COPY *.xsd /app/api/services/
 
 COPY --from=build-stage /app/static /app/static
 
