@@ -53,9 +53,6 @@ class NFeBuilder:
             base_dir = os.path.dirname(os.path.abspath(__file__))
             xsd_file = os.path.join(base_dir, "nfe_v4.00.xsd")
             
-            if not os.path.exists(xsd_file):
-                return False, f"Arquivo XSD nao encontrado em {xsd_file}"
-
             schema_doc = etree.parse(xsd_file)
             schema = etree.XMLSchema(schema_doc)
             schema.assertValid(xml_element)
@@ -80,7 +77,7 @@ class NFeBuilder:
         etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}CNPJ").text = PRESTADOR_CNPJ
         etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}xNome").text = "LUCAS ABRAAO NERI DE MELO"
         enderEmit = etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}enderEmit")
-        for tag, val in [("xLgr", "AV 21 DE ABRIL"), ("n", "SN"), ("xBairro", "SOLON AMARAL"), ("cMun", "5209903"), ("xMun", "Iaciara"), ("UF", "GO"), ("CEP", "73920000"), ("cPais", "1058"), ("xPais", "BRASIL")]:
+        for tag, val in [("xLgr", "AV 21 DE ABRIL"), ("nro", "SN"), ("xBairro", "SOLON AMARAL"), ("cMun", "5209903"), ("xMun", "Iaciara"), ("UF", "GO"), ("CEP", "73920000"), ("cPais", "1058"), ("xPais", "BRASIL")]:
             etree.SubElement(enderEmit, f"{{{NFE_NAMESPACE}}}{tag}").text = val
         etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}IE").text = PRESTADOR_IE
         etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}CRT").text = "1"
@@ -89,7 +86,7 @@ class NFeBuilder:
         etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}{'CPF' if len(dados['documento_tomador'])==11 else 'CNPJ'}").text = dados["documento_tomador"]
         etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}xNome").text = normalizar_texto(dados["nome"][:60])
         enderDest = etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}enderDest")
-        for tag, val in [("xLgr", normalizar_texto(dados["endereco"])), ("n", dados["numero"]), ("xBairro", normalizar_texto(dados["bairro"])), ("cMun", dados["codigo_ibge"]), ("xMun", "IACIARA"), ("UF", dados["uf"]), ("CEP", dados["cep"]), ("cPais", "1058"), ("xPais", "BRASIL")]:
+        for tag, val in [("xLgr", normalizar_texto(dados["endereco"])), ("nro", dados["numero"]), ("xBairro", normalizar_texto(dados["bairro"])), ("cMun", dados["codigo_ibge"]), ("xMun", "IACIARA"), ("UF", dados["uf"]), ("CEP", dados["cep"]), ("cPais", "1058"), ("xPais", "BRASIL")]:
             etree.SubElement(enderDest, f"{{{NFE_NAMESPACE}}}{tag}").text = val
         etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}indIEDest").text = "9"
         
