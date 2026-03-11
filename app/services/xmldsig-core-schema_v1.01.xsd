@@ -31,7 +31,7 @@
 			</element>
 			<element name="SignatureMethod">
 				<complexType>
-					<attribute name="Algorithm" type="anyURI" use="required" fixed="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>
+					<attribute name="Algorithm" type="anyURI" use="required"/>
 				</complexType>
 			</element>
 			<element name="Reference" type="ds:ReferenceType"/>
