@@ -129,9 +129,9 @@ class NFeBuilder:
         ict = etree.SubElement(tot, f"{{{NFE_NAMESPACE}}}ICMSTot")
         
         campos_tot = [
-            "vBC", "vICMS", "vICMSDeson", "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet",
-            "vProd", "vFrete", "vSeg", "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS",
-            "vCOFINS", "vOutro", "vNF", "vTotTrib", "vFCPUFDest", "vICMSUFDest", "vICMSUFRemet"
+            "vBC", "vICMS", "vICMSDeson", "vFCPUFDest", "vICMSUFDest", "vICMSUFRemet",
+            "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet", "vProd", "vFrete", "vSeg",
+            "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS", "vCOFINS", "vOutro", "vNF", "vTotTrib"
         ]
         
         for f in campos_tot:
@@ -151,7 +151,6 @@ class NFeBuilder:
         return infNFe.get("Id")
 
     def assinar_e_transmitir(self, cert_pem, key_pem, nfe_id):
-
         signer = XMLSigner(
             method=methods.enveloped,
             signature_algorithm="rsa-sha256",
@@ -160,16 +159,15 @@ class NFeBuilder:
         )
         
         etree.register_namespace("ds", "http://www.w3.org/2000/09/xmldsig#")
-        
         signed_nfe = signer.sign(self.root, key=key_pem, cert=cert_pem, reference_uri=f"#{nfe_id}")
         
-        envio = etree.Element(f"{{{NFE_NAMESPACE}}}enviNFe", versao="4.00", nsmap={None: NFE_NAMESPACE})
+        envio = etree.Element(f"{{{NFE_NAMESPACE}}}enviNFe", nsmap={None: NFE_NAMESPACE}, versao="4.00")
         etree.SubElement(envio, f"{{{NFE_NAMESPACE}}}idLote").text = str(random.randint(100000, 999999999999999))[:15]
         etree.SubElement(envio, f"{{{NFE_NAMESPACE}}}indSinc").text = "1"
         envio.append(signed_nfe)
         
-        soap_ns = "http://www.w3.org/2003/05/soap-envelope"
         wsdl_ns = "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4"
+        soap_ns = "http://www.w3.org/2003/05/soap-envelope"
         
         envelope = etree.Element(f"{{{soap_ns}}}Envelope", nsmap={'soap12': soap_ns})
         body = etree.SubElement(envelope, f"{{{soap_ns}}}Body")
@@ -183,11 +181,8 @@ class NFeBuilder:
         print(soap_final)
         print("="*50 + "\n")
 
-        with tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as c, \
-             tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as k:
-            c.write(cert_pem)
-            k.write(key_pem)
-            cp, kp = c.name, k.name
+        with tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as c, tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as k:
+            c.write(cert_pem); k.write(key_pem); cp, kp = c.name, k.name
         
         try:
             res = requests.post(
