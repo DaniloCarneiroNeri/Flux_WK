@@ -39,6 +39,8 @@ COPY *.xsd /app/api/services/
 
 COPY --from=build-stage /app/static /app/static
 
+RUN cp /app/*.xsd /app/api/services/ 2>/dev/null || true
+
 EXPOSE 8000
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
