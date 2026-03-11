@@ -48,10 +48,13 @@ def gerar_chave_acesso(uf, data, cnpj, serie, numero):
     return f"{chave_parcial}{dv}", cnf_random, dv
 
 class NFeBuilder:
-    def validar_com_xsd(self, xml_element, xsd_path="nfe_v4.00.xsd"):
+    def validar_com_xsd(self, xml_element):
         try:
+            base_path = os.path.dirname(os.path.abspath(__file__))
+            xsd_path = os.path.join(base_path, "nfe_v4.00.xsd")
+            
             with open(xsd_path, 'rb') as f:
-                schema_root = etree.XML(f.read())
+                schema_root = etree.XML(f.read(), base_url=base_path)
                 schema = etree.XMLSchema(schema_root)
             schema.assertValid(xml_element)
             return True, ""
@@ -109,7 +112,11 @@ class NFeBuilder:
         
         tot = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}total")
         ict = etree.SubElement(tot, f"{{{NFE_NAMESPACE}}}ICMSTot")
-        campos_tot = ["vBC", "vICMS", "vICMSDeson", "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet", "vProd", "vFrete", "vSeg", "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS", "vCOFINS", "vOutro", "vNF", "vTotTrib", "vFCPUFDest", "vICMSUFDest", "vICMSUFRemet"]
+        campos_tot = [
+            "vBC", "vICMS", "vICMSDeson", "vFCPUFDest", "vICMSUFDest", "vICMSUFRemet",
+            "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet", "vProd", "vFrete", "vSeg",
+            "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS", "vCOFINS", "vOutro", "vNF", "vTotTrib"
+        ]
         for f in campos_tot:
             val = f"{dados['valor_total']:.2f}" if f in ["vProd", "vNF"] else "0.00"
             etree.SubElement(ict, f"{{{NFE_NAMESPACE}}}{f}").text = val
