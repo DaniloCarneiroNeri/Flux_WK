@@ -54,7 +54,7 @@ class NFeBuilder:
         infNFe = etree.SubElement(root, f"{{{NFE_NAMESPACE}}}infNFe", versao="4.00", Id=f"NFe{chave}")
         
         ide = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}ide")
-        for tag, val in [("cUF", "52"), ("cNF", cnf), ("natOp", "VENDAS"), ("mod", "55"), ("serie", "1"), ("nNF", str(dados["rps_numero"])), ("dhEmi", dados["data_emissao"]), ("tpNF", "1"), ("idDest", "1"), ("cMunFG", "5209903"), ("tpImp", "1"), ("tpEmis", "1"), ("cDV", str(dv)), ("tpAmb", "2"), ("finNFe", "1"), ("indFinal", "1"), ("indPres", "1"), ("procEmi", "0"), ("verProc", "1.0")]:
+        for tag, val in [("cUF", "52"), ("cNF", cnf), ("natOp", "VENDAS"), ("mod", "55"), ("serie", "1"), ("nNF", str(dados["rps_numero"])), ("dhEmi", dados["data_emissao"]), ("tpNF", "1"), ("idDest", "1"), ("cMunFG", "5209903"), ("tpImp", "1"), ("tpEmis", "1"), ("cDV", str(dv)), ("tpAmb", "2"), ("finNFe", "1"), ("indFinal", "1"), ("indPres", "1"), ("indIntermed", "0"), ("procEmi", "0"), ("verProc", "1.0")]:
             etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}{tag}").text = val
         
         emit = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}emit")
@@ -106,12 +106,13 @@ class NFeBuilder:
         dpag = etree.SubElement(pag, f"{{{NFE_NAMESPACE}}}detPag")
         etree.SubElement(dpag, f"{{{NFE_NAMESPACE}}}tPag").text = "01"
         etree.SubElement(dpag, f"{{{NFE_NAMESPACE}}}vPag").text = f"{dados['valor_total']:.2f}"
+        etree.SubElement(pag, f"{{{NFE_NAMESPACE}}}vTroco").text = "0.00"
         
         self.root = root
         return infNFe.get("Id")
 
     def assinar_e_transmitir(self, cert_pem, key_pem, nfe_id):
-        signer = XMLSigner(method=methods.enveloped, signature_algorithm="rsa-sha1", digest_algorithm="sha1", c14n_algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315")
+        signer = XMLSigner(method=methods.enveloped, signature_algorithm="rsa-sha256", digest_algorithm="sha256", c14n_algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315")
         signed = signer.sign(self.root, key=key_pem, cert=cert_pem, reference_uri=f"#{nfe_id}")
         
         envio = etree.Element(f"{{{NFE_NAMESPACE}}}enviNFe", nsmap=NS_MAP, versao="4.00")
