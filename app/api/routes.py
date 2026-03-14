@@ -12,8 +12,6 @@ import time
 from datetime import datetime
 
 router = APIRouter()
-USUARIO_CENTI = os.getenv("USUARIO_CENTI")
-SENHA_CENTI = os.getenv("SENHA_CENTI")
 
 class OrcamentoBody(BaseModel):
     cliente_id: int
@@ -21,6 +19,7 @@ class OrcamentoBody(BaseModel):
     items: Optional[List[ItemOrdemSchema]] = []
 
 class ProdutoCreate(BaseModel):
+    cst: str
     cfop: str
     descricao: str
     unid: str

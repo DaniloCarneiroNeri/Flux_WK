@@ -15,6 +15,7 @@
           <table class="modern-grid">
             <thead>
               <tr>
+                <th>CST</th>
                 <th>CFOP</th>
                 <th>DESCRIÇÃO</th>
                 <th>UNIDADE</th>
@@ -52,10 +53,16 @@
           
           <div class="modal-body">
             <div class="form-grid">
+             <div class="field-group">
+                <label>CST</label>
+                <input type="text" v-model="form.cfop" class="custom-input" />
+              </div>
+
               <div class="field-group">
                 <label>CFOP</label>
                 <input type="text" v-model="form.cfop" class="custom-input" />
               </div>
+
               <div class="field-group">
                 <label>UNIDADE</label>
                 <select v-model="form.unid" class="custom-input">
@@ -108,7 +115,7 @@ const openModal = (produto = null) => {
     form.value = { ...produto };
   } else {
     isEditing.value = false;
-    form.value = { id: null, cfop: '', descricao: '', unid: 'UN' };
+    form.value = { id: null, cst: '', cfop: '', descricao: '', unid: 'UN' };
   }
   showModal.value = true;
 };
