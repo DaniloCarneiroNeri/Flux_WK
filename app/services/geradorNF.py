@@ -174,8 +174,8 @@ class NFeBuilder:
     def assinar_e_transmitir(self, cert_pem, key_pem, nfe_id):
         signer = XMLSigner(
             method=methods.enveloped,
-            signature_algorithm="rsa-sha256",
-            digest_algorithm="sha256",
+            signature_algorithm="rsa-sha1",
+            digest_algorithm="sha1",
             c14n_algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
         )
         
@@ -193,12 +193,10 @@ class NFeBuilder:
         
         envelope = etree.Element(f"{{{soap_ns}}}Envelope", nsmap={'soap12': soap_ns})
         body = etree.SubElement(envelope, f"{{{soap_ns}}}Body")
-        nfe_dados_msg = etree.SubElement(body, f"{{{wsdl_ns}}}nfeDadosMsg")
+        nfe_dados_msg = etree.SubElement(body, f"{{{wsdl_ns}}}nfeDadosMsg", nsmap={None: wsdl_ns})
         nfe_dados_msg.append(envio)
         
         soap_final = etree.tostring(envelope, encoding="utf-8", method="xml").decode("utf-8")
-        
-        soap_final = soap_final.replace('xmlns:ds="http://www.w3.org/2000/09/xmldsig#"', 'xmlns="http://www.w3.org/2000/09/xmldsig#"').replace("ds:", "")
 
         print("\n" + "="*50)
         print("XML ENVIADO PARA SEFAZ:")
