@@ -20,7 +20,11 @@ class OrcamentoBody(BaseModel):
     valor_total: float
     items: Optional[List[ItemOrdemSchema]] = []
 
-# --- ROTAS DE CLIENTES ---
+class ProdutoCreate(BaseModel):
+    cfop: str
+    descricao: str
+    unid: str
+
 @router.get("/clientes")
 def get_clientes():
     response = supabase.table("clientes").select("*").execute()
@@ -64,7 +68,6 @@ def delete_cliente(client_id: int):
             raise HTTPException(status_code=400, detail="Cliente possui Ordens de Serviço.")
         raise HTTPException(status_code=400, detail=str(e))
 
-# --- ROTAS DE CATÁLOGO ---
 @router.get("/servicos")
 def get_catalogo():
     response = supabase.table("servicos_catalogo").select("*").eq("ativo", True).execute()
@@ -115,7 +118,58 @@ def delete_servico(service_id: int):
             raise HTTPException(status_code=400, detail="Serviço vinculado a ordens existentes.")
         raise HTTPException(status_code=400, detail=str(e))
 
-# --- ROTAS DE ORDENS DE SERVIÇO ---
+@router.get("/produtos")
+def get_produtos():
+    try:
+        response = supabase.table("produtos").select("*").execute()
+        data = response.data
+        for item in data:
+            if item.get('unid'):
+                hex_val = item['unid'].replace('\\x', '')
+                try:
+                    item['unid'] = bytes.fromhex(hex_val).decode('utf-8')
+                except:
+                    pass
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/produtos")
+def create_produto(produto: ProdutoCreate):
+    try:
+        data = produto.dict()
+        if data.get('unid'):
+            data['unid'] = '\\x' + data['unid'].encode('utf-8').hex()
+        response = supabase.table("produtos").insert(data).execute()
+        if response.data:
+            return response.data[0]
+        raise HTTPException(status_code=500, detail="Erro ao inserir")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put("/produtos/{produto_id}")
+def update_produto(produto_id: int, produto: ProdutoCreate):
+    try:
+        data = produto.dict()
+        if data.get('unid'):
+            data['unid'] = '\\x' + data['unid'].encode('utf-8').hex()
+        response = supabase.table("produtos").update(data).eq("id", produto_id).execute()
+        if response.data:
+            return {"message": "Produto atualizado"}
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/produtos/{produto_id}")
+def delete_produto(produto_id: int):
+    try:
+        response = supabase.table("produtos").delete().eq("id", produto_id).execute()
+        if response.data:
+            return {"message": "Produto excluído"}
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.get("/ordens")
 def get_ordens():
     try:
@@ -201,7 +255,6 @@ def update_status(order_id: int, status_data: OrdemStatusUpdate):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# --- ROTAS DE ORÇAMENTOS ---
 @router.get("/orcamentos")
 def get_orcamentos():
     try:
@@ -268,7 +321,6 @@ def patch_orcamento(orcamento_id: int, orcamento_update: OrcamentoUpdate):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# --- DESPESAS ---
 @router.post("/despesas")
 def criar_despesa(despesa: DespesaCreate):
     try:
@@ -347,7 +399,7 @@ def get_cnpj_data(cnpj: str):
         if isinstance(e, HTTPException):
             raise e
         return {}
-# --- ROTA DE EMISSÃO COM VALIDAÇÃO ---
+
 @router.post("/nfe/emitir")
 def emitir_nota_fiscal(dados: EmissaoNotaRequest):
     try:

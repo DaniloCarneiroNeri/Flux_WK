@@ -41,6 +41,7 @@ import ClientForm from './components/ClientForm.vue';
 import ServiceForm from './components/ServiceForm.vue';
 import ExpenseForm from './components/ExpenseForm.vue'; 
 import ReportsView from './components/ReportsView.vue';
+import ProdutoForm from './components/ProdutoForm.vue';
 
 const currentView = ref('board');
 const isAuthenticated = ref(false);
@@ -68,6 +69,7 @@ const activeComponent = computed(() => {
   switch (currentView.value) {
     case 'board': return ServiceBoard;
     case 'client-register': return ClientForm;
+    case 'product-register': return ProdutoForm;
     case 'service-register': return ServiceForm;
     case 'expense-register': return ExpenseForm;
     case 'reports': return ReportsView;

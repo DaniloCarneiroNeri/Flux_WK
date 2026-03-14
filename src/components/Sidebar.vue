@@ -23,6 +23,7 @@
         </div>
         <div class="nav-sub">
           <a @click="navigate('client-register')" class="sub-item" :class="{ active: currentSelection === 'client-register' }">Clientes</a>
+          <a @click="navigate('product-register')" class="sub-item" :class="{ active: currentSelection === 'product-register' }">Produtos</a>
           <a @click="navigate('service-register')" class="sub-item" :class="{ active: currentSelection === 'service-register' }">Orçamentos</a>
           <a @click="navigate('expense-register')" class="sub-item" :class="{ active: currentSelection === 'expense-register' }">Despesas</a>
         </div>
