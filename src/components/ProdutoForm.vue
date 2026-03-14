@@ -24,6 +24,7 @@
             </thead>
             <tbody>
               <tr v-for="produto in produtos" :key="produto.id" class="row-hover">
+                <td><strong>{{ produto.cst }}</strong></td>
                 <td><strong>{{ produto.cfop }}</strong></td>
                 <td>{{ produto.descricao }}</td>
                 <td><span class="status-tag billed">{{ produto.unid }}</span></td>
@@ -55,7 +56,7 @@
             <div class="form-grid">
              <div class="field-group">
                 <label>CST</label>
-                <input type="text" v-model="form.cfop" class="custom-input" />
+                <input type="text" v-model="form.cst" class="custom-input" />
               </div>
 
               <div class="field-group">
@@ -97,7 +98,7 @@ const produtos = ref([]);
 const showModal = ref(false);
 const isEditing = ref(false);
 const saving = ref(false);
-const form = ref({ id: null, cfop: '', descricao: '', unid: 'UN' });
+const form = ref({ id: null, cst: '', cfop: '', descricao: '', unid: 'UN' });
 
 const loadData = async () => {
   try {
