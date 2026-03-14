@@ -150,9 +150,9 @@ class NFeBuilder:
         ict = etree.SubElement(tot, f"{{{NFE_NAMESPACE}}}ICMSTot")
         
         campos_tot = [
-            "vBC", "vICMS", "vICMSDeson", "vFCPUFDest", "vICMSUFDest", "vICMSUFRemet",
-            "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet", "vProd", "vFrete", "vSeg",
-            "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS", "vCOFINS", "vOutro", "vNF", "vTotTrib"
+            "vBC", "vICMS", "vICMSDeson", "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet",
+            "vProd", "vFrete", "vSeg", "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS",
+            "vCOFINS", "vOutro", "vNF"
         ]
         
         for f in campos_tot:
@@ -198,6 +198,8 @@ class NFeBuilder:
         
         soap_final = etree.tostring(envelope, encoding="utf-8", method="xml").decode("utf-8")
         
+        soap_final = soap_final.replace('xmlns:ds="http://www.w3.org/2000/09/xmldsig#"', 'xmlns="http://www.w3.org/2000/09/xmldsig#"').replace("ds:", "")
+
         print("\n" + "="*50)
         print("XML ENVIADO PARA SEFAZ:")
         print(soap_final)
