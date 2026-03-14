@@ -113,7 +113,8 @@ class NFeBuilder:
         etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}IE").text = PRESTADOR_IE
         etree.SubElement(emit, f"{{{NFE_NAMESPACE}}}CRT").text = "1"
         
-        dest = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}dest")
+        #dest = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}dest")
+        dest = "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
         etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}{'CPF' if len(dados['documento_tomador'])==11 else 'CNPJ'}").text = dados["documento_tomador"]
         etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}xNome").text = normalizar_texto(dados["nome"])[:60]
         enderDest = etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}enderDest")
