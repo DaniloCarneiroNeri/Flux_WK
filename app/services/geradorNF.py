@@ -217,6 +217,19 @@ class NFeBuilder:
                 cert=(cp, kp), 
                 timeout=30
             )
+            
+            try:
+                root_resp = etree.fromstring(res.text.encode('utf-8'))
+                prot_nfe = root_resp.find('.//nfe:protNFe', namespaces={'nfe': NFE_NAMESPACE})
+                
+                if prot_nfe is not None:
+                    nfe_proc = etree.Element(f"{{{NFE_NAMESPACE}}}nfeProc", versao="4.00", nsmap={None: NFE_NAMESPACE})
+                    nfe_proc.append(signed_nfe)
+                    nfe_proc.append(prot_nfe)
+                    return etree.tostring(nfe_proc, encoding="utf-8").decode("utf-8")
+            except:
+                pass
+                
             return res.text
         finally:
             if os.path.exists(cp): os.unlink(cp)
