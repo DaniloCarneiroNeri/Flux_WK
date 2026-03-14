@@ -34,7 +34,14 @@
               <div v-if="itens.length === 0" class="empty-msg">Nenhum item adicionado ao orçamento.</div>
               <div v-for="(item, index) in itens" :key="index" class="item-row">
                 <div class="row-main">
-                  <input type="text" v-model="item.descricao_item" placeholder="Descrição da peça ou serviço" class="m-input" />
+                  <input 
+                    type="text" 
+                    list="produtos-lista" 
+                    v-model="item.descricao_item" 
+                    @input="updateItemData(item)"
+                    placeholder="Descrição da peça ou serviço" 
+                    class="m-input" 
+                  />
                 </div>
                 <div class="row-details">
                   <div class="mini-field">
@@ -52,6 +59,10 @@
                 </div>
               </div>
             </div>
+            
+            <datalist id="produtos-lista">
+              <option v-for="p in produtos" :key="p.id" :value="p.descricao"></option>
+            </datalist>
           </div>
 
           <div class="form-footer">
@@ -92,6 +103,7 @@ import logoImg from '../logo.png';
 
 const clientes = ref([]);
 const orcamentosSalvos = ref([]);
+const produtos = ref([]);
 const selectedClientId = ref(null);
 const itens = ref([]);
 const isEditing = ref(false);
@@ -99,12 +111,14 @@ const editingId = ref(null);
 
 const loadData = async () => {
   try {
-    const [resClientes, resOrcamentos] = await Promise.all([
+    const [resClientes, resOrcamentos, resProdutos] = await Promise.all([
       api.get('/clientes'),
-      api.get('/orcamentos')
+      api.get('/orcamentos'),
+      api.get('/produtos')
     ]);
     clientes.value = resClientes;
     orcamentosSalvos.value = resOrcamentos;
+    produtos.value = resProdutos;
   } catch (e) {
     console.error(e);
   }
@@ -112,8 +126,32 @@ const loadData = async () => {
 
 onMounted(loadData);
 
-const addItem = () => { itens.value.push({ descricao_item: '', quantidade: 1, valor_unitario: 0 }); };
+const addItem = () => { 
+  itens.value.push({ 
+    descricao_item: '', 
+    quantidade: 1, 
+    valor_unitario: 0,
+    produto_id: null,
+    cfop: '',
+    unid: 'UN'
+  }); 
+};
+
 const removeItem = (index) => { itens.value.splice(index, 1); };
+
+const updateItemData = (item) => {
+  const matched = produtos.value.find(p => p.descricao === item.descricao_item);
+  if (matched) {
+    item.produto_id = matched.id;
+    item.cfop = matched.cfop;
+    item.unid = matched.unid;
+  } else {
+    item.produto_id = null;
+    item.cfop = '';
+    item.unid = 'UN';
+  }
+};
+
 const totalOrcamento = computed(() => itens.value.reduce((total, item) => total + (item.quantidade * item.valor_unitario), 0));
 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 const getClienteNome = (id) => clientes.value.find(c => c.id === id)?.nome || 'Cliente N/A';
@@ -128,7 +166,10 @@ const save = async () => {
       items: itens.value.map(i => ({
         descricao_item: i.descricao_item,
         quantidade: i.quantidade,
-        valor_unitario: i.valor_unitario
+        valor_unitario: i.valor_unitario,
+        produto_id: i.produto_id || null,
+        cfop: i.cfop || '',
+        unid: i.unid || 'UN'
       }))
     };
     if (isEditing.value) {
@@ -177,7 +218,10 @@ const gerarOS = async (orc) => {
       items: (orc.itens_orcamento || orc.items).map(i => ({
         descricao_item: i.descricao_item,
         quantidade: i.quantidade,
-        valor_unitario: i.valor_unitario
+        valor_unitario: i.valor_unitario,
+        produto_id: i.produto_id || null,
+        cfop: i.cfop || '',
+        unid: i.unid || 'UN'
       }))
     };
     await api.post('/ordens', payload);
