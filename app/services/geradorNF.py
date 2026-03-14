@@ -150,9 +150,9 @@ class NFeBuilder:
         ict = etree.SubElement(tot, f"{{{NFE_NAMESPACE}}}ICMSTot")
         
         campos_tot = [
-            "vBC", "vICMS", "vICMSDeson", "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet",
-            "vProd", "vFrete", "vSeg", "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS",
-            "vCOFINS", "vOutro", "vNF", "vTotTrib", "vFCPUFDest", "vICMSUFDest", "vICMSUFRemet"
+            "vBC", "vICMS", "vICMSDeson", "vFCPUFDest", "vICMSUFDest", "vICMSUFRemet",
+            "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet", "vProd", "vFrete", "vSeg",
+            "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS", "vCOFINS", "vOutro", "vNF", "vTotTrib"
         ]
         
         for f in campos_tot:
