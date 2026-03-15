@@ -133,6 +133,8 @@ class NFeBuilder:
             v_prod_calc = q_com * v_un
             v_prod_total += v_prod_calc
             
+            unid_segura = str(it.get("unid", "UN")).replace("²", "2")[:6]
+            
             det = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}det", nItem=str(idx+1))
             prod = etree.SubElement(det, f"{{{NFE_NAMESPACE}}}prod")
             tags_prod = [
@@ -140,13 +142,13 @@ class NFeBuilder:
                 ("cEAN", "SEM GTIN"), 
                 ("xProd", it["descricao"]), 
                 ("NCM", "39162000"), 
-                ("CFOP", str(it["cfop"])), 
-                ("uCom", str(it["unid"])[:6]), 
+                ("CFOP", str(it.get("cfop", "5102"))), 
+                ("uCom", unid_segura), 
                 ("qCom", f"{q_com:.4f}"), 
                 ("vUnCom", f"{v_un:.4f}"), 
                 ("vProd", f"{v_prod_calc:.2f}"), 
                 ("cEANTrib", "SEM GTIN"), 
-                ("uTrib", str(it["unid"])[:6]), 
+                ("uTrib", unid_segura), 
                 ("qTrib", f"{q_com:.4f}"), 
                 ("vUnTrib", f"{v_un:.4f}"), 
                 ("indTot", "1")
@@ -158,7 +160,7 @@ class NFeBuilder:
             icms = etree.SubElement(imp, f"{{{NFE_NAMESPACE}}}ICMS")
             sn = etree.SubElement(icms, f"{{{NFE_NAMESPACE}}}ICMSSN102")
             etree.SubElement(sn, f"{{{NFE_NAMESPACE}}}orig").text = "0"
-            etree.SubElement(sn, f"{{{NFE_NAMESPACE}}}CSOSN").text = str(it["cst"])
+            etree.SubElement(sn, f"{{{NFE_NAMESPACE}}}CSOSN").text = "102"
             
             for imp_tag in ["PIS", "COFINS"]:
                 sub_imp = etree.SubElement(imp, f"{{{NFE_NAMESPACE}}}{imp_tag}")
