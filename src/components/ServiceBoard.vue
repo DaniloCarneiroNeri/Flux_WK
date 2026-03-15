@@ -160,7 +160,9 @@
           <div class="modal-footer">
             <div class="footer-actions-left">
               <button class="btn-action-alt" @click="emitReceipt" :disabled="!isEditing">EMITIR RECIBO</button>
-              <button class="btn-action-alt" @click="emitNFe" :disabled="!isEditing || form.status === 'billed'">EMITIR NFE</button>
+              <button class="btn-action-alt" @click="form.nf_emitida ? downloadNFe() : emitNFe()" :disabled="!isEditing">
+                {{ form.nf_emitida ? 'BAIXAR NFE' : 'EMITIR NFE' }}
+              </button>
             </div>
             <div class="footer-actions-right">
               <button class="btn-sec" @click="closeModal">FECHAR</button>
@@ -259,9 +261,11 @@ const openModal = (order = null) => {
     form.value = JSON.parse(JSON.stringify(order));
     form.value.items = form.value.itens_ordem || form.value.items || [];
     form.value.desconto = parseFloat(form.value.desconto) || 0;
+    form.value.nf_emitida = !!form.value.nf_emitida;
+    form.value.link_nf = form.value.link_nf || "";
   } else {
     isEditing.value = false;
-    form.value = { id: null, cliente_id: "", status: 'pending', observacoes: '', items: [], desconto: 0, valor_total: 0 };
+    form.value = { id: null, cliente_id: "", status: 'pending', observacoes: '', items: [], desconto: 0, valor_total: 0, nf_emitida: false, link_nf: "" };
   }
   showModal.value = true;
 };
@@ -671,11 +675,32 @@ const emitNFe = async () => {
       discriminacao: form.value.items.map(i => `${i.quantidade}x ${i.descricao_item}`).join(' | ')
     };
     const res = await api.post('/nfe/emitir', payload);
-    if (res.protocolo_sefaz) { generateDanfePdf(res.protocolo_sefaz); }
+    if (res.protocolo_sefaz) {
+      form.value.link_nf = res.protocolo_sefaz;
+      form.value.nf_emitida = true;
+      form.value.status = 'billed';
+      await api.put(`/ordens/${form.value.id}`, { ...form.value, desconto: parseFloat(form.value.desconto) || 0, itens_ordem: form.value.items });
+      generateDanfePdf(res.protocolo_sefaz);
+    }
     await loadData(); closeModal(); triggerNotify('Sucesso', 'NF-e Autorizada e DANFE gerada.', 'success');
   } catch (e) {
     const errorMsg = e.response?.data?.detail || e.message;
     triggerNotify('Erro na NF-e', errorMsg, 'error');
+  }
+};
+
+const downloadNFe = () => {
+  if (form.value.link_nf) {
+    generateDanfePdf(form.value.link_nf);
+    const blob = new Blob([form.value.link_nf], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `NFe_${form.value.id}.xml`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } else {
+    triggerNotify('Erro', 'XML da nota não encontrado.', 'error');
   }
 };
 
