@@ -671,7 +671,7 @@ const emitNFe = async () => {
     const payload = {
       cliente_id: form.value.cliente_id,
       ordem_id: form.value.id,
-      valor_servico: form.value.valor_total,
+      valor_servico: form.value.valor_total - form.value.desconto,
       discriminacao: form.value.items.map(i => `${i.quantidade}x ${i.descricao_item}`).join(' | ')
     };
     const res = await api.post('/nfe/emitir', payload);

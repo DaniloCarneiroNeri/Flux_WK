@@ -210,7 +210,9 @@ def update_ordem(order_id: int, ordem: OrdemServicoCreate):
             "valor_total": ordem.valor_total,
             "observacoes": ordem.observacoes,
             "status": ordem.status,
-            "desconto": ordem.dict().get("desconto", 0)
+            "desconto": ordem.dict().get("desconto", 0),
+            "nf_emitida": ordem.dict().get("nf_emitida", False),
+            "link_nf": ordem.dict().get("link_nf", "")
         }
         
         supabase.table("ordens_servico").update(update_data).eq("id", order_id).execute()
