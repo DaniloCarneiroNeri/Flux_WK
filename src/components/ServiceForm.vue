@@ -333,6 +333,7 @@ const gerarOS = async (orc) => {
       cliente_id: orc.cliente_id,
       valor_total: orc.valor_total || orc.total,
       status: 'pending',
+      desconto: 0,
       items: (orc.itens_orcamento || orc.items).map(i => ({
         descricao_item: i.descricao_item,
         quantidade: i.quantidade,
