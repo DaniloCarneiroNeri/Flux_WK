@@ -43,17 +43,21 @@
                     class="m-input" 
                   />
                 </div>
-                <div class="row-details">
+                <div :class="['row-details', { 'has-m2': item.unid === 'MT²' }]">
                   <div class="mini-field">
                     <label>QTD</label>
                     <input type="number" v-model.number="item.quantidade" class="m-input" />
+                  </div>
+                  <div class="mini-field" v-if="item.unid === 'MT²'">
+                    <label>M²</label>
+                    <input type="number" v-model.number="item.m2" class="m-input" step="0.01" />
                   </div>
                   <div class="mini-field">
                     <label>VALOR UNIT.</label>
                     <input type="number" v-model.number="item.valor_unitario" class="m-input" step="0.01" />
                   </div>
                   <div class="item-subtotal">
-                    {{ formatCurrency(item.quantidade * item.valor_unitario) }}
+                    {{ formatCurrency(getItemTotal(item)) }}
                   </div>
                   <button type="button" @click="removeItem(index)" class="btn-remove">✕</button>
                 </div>
@@ -91,6 +95,23 @@
         </div>
       </section>
     </main>
+
+    <transition name="modal">
+      <div v-if="osModal.show" class="modal-overlay" @click.self="closeOsModal">
+        <div class="modal-card mini-modal">
+          <div class="modal-header">
+            <h3>{{ osModal.type === 'error' ? 'Atenção' : 'Sucesso' }}</h3>
+            <button class="close-x" @click="closeOsModal">×</button>
+          </div>
+          <div class="modal-body">
+            <p>{{ osModal.message }}</p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-pri" @click="closeOsModal">OK</button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -109,6 +130,8 @@ const itens = ref([]);
 const isEditing = ref(false);
 const editingId = ref(null);
 
+const osModal = ref({ show: false, message: '', type: 'success' });
+
 const loadData = async () => {
   try {
     const [resClientes, resOrcamentos, resProdutos] = await Promise.all([
@@ -126,6 +149,10 @@ const loadData = async () => {
 
 onMounted(loadData);
 
+const closeOsModal = () => {
+  osModal.value.show = false;
+};
+
 const addItem = () => { 
   itens.value.push({ 
     descricao_item: '', 
@@ -133,7 +160,8 @@ const addItem = () => {
     valor_unitario: 0,
     produto_id: null,
     cfop: '',
-    unid: 'UN'
+    unid: 'UN',
+    m2: 0
   }); 
 };
 
@@ -152,7 +180,14 @@ const updateItemData = (item) => {
   }
 };
 
-const totalOrcamento = computed(() => itens.value.reduce((total, item) => total + (item.quantidade * item.valor_unitario), 0));
+const getItemTotal = (item) => {
+  if (item.unid === 'MT²') {
+    return item.quantidade * (item.m2 || 0) * item.valor_unitario;
+  }
+  return item.quantidade * item.valor_unitario;
+};
+
+const totalOrcamento = computed(() => itens.value.reduce((total, item) => total + getItemTotal(item), 0));
 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 const getClienteNome = (id) => clientes.value.find(c => c.id === id)?.nome || 'Cliente N/A';
 
@@ -169,7 +204,8 @@ const save = async () => {
         valor_unitario: i.valor_unitario,
         produto_id: i.produto_id || null,
         cfop: i.cfop || '',
-        unid: i.unid || 'UN'
+        unid: i.unid || 'UN',
+        m2: i.unid === 'MT²' ? i.m2 : 0
       }))
     };
     if (isEditing.value) {
@@ -180,7 +216,7 @@ const save = async () => {
     await loadData();
     resetForm();
   } catch (e) {
-    alert("Erro ao salvar: Verifique os campos");
+    osModal.value = { show: true, message: "Erro ao salvar: Verifique os campos", type: 'error' };
   }
 };
 
@@ -188,25 +224,107 @@ const editOrcamento = (orc) => {
   isEditing.value = true;
   editingId.value = orc.id;
   selectedClientId.value = orc.cliente_id;
-  itens.value = JSON.parse(JSON.stringify(orc.itens_orcamento || orc.items || []));
+  itens.value = JSON.parse(JSON.stringify(orc.itens_orcamento || orc.items || [])).map(i => ({
+    ...i,
+    m2: i.m2 || 0
+  }));
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 const downloadPDF = (orc) => {
   const doc = new jsPDF();
   const cliente = clientes.value.find(c => c.id === orc.cliente_id) || { nome: '' };
+  
+  doc.addImage(logoImg, 'PNG', 14, 10, 30, 30);
+  
   doc.setFontSize(14);
-  doc.text('ORÇAMENTO - WK VIDROS', 10, 20);
-  doc.text(`Cliente: ${cliente.nome}`, 10, 30);
+  doc.setFont("helvetica", "bold");
+  doc.text('Andressa Oliveira', 50, 16);
+  
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text('CPF/CNPJ: 55952245000100', 50, 22);
+  doc.text('Avenida 21 de abril', 50, 27);
+  doc.text('Telefone(s): 62998766290', 50, 32);
+  doc.text('E-mail:', 50, 37);
+  
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Orçamento nº: ${orc.id || ''}`, 140, 16);
+  
+  doc.setFont("helvetica", "normal");
+  const dataEmissao = orc.data || new Date().toLocaleDateString('pt-BR');
+  doc.text(`Emitido em: ${dataEmissao}`, 140, 22);
+  doc.text('Válido até: ', 140, 27);
+  
+  doc.line(14, 42, 196, 42);
+  
+  doc.setFont("helvetica", "bold");
+  doc.text(`Cliente: ${cliente.nome}`, 14, 48);
+  
+  doc.setFont("helvetica", "normal");
+  doc.text('Endereço: ', 14, 53);
+  doc.text('Fone: ', 14, 58);
+  doc.text('CPF: ', 140, 48);
+  
+  doc.line(14, 62, 196, 62);
+  
   const itemsSource = orc.itens_orcamento || orc.items || [];
-  const tableRows = itemsSource.map(item => [
-    item.quantidade, 
-    item.descricao_item, 
-    (item.valor_unitario).toFixed(2), 
-    (item.quantidade * item.valor_unitario).toFixed(2)
-  ]);
-  autoTable(doc, { startY: 40, head: [['Qtd', 'Descrição', 'Unitário', 'Total']], body: tableRows });
-  doc.save(`Orcamento_${orc.id}.pdf`);
+  const tableRows = itemsSource.map(item => {
+    return [
+      String(item.quantidade),
+      item.unid || 'UN',
+      item.descricao_item,
+      formatCurrency(item.valor_unitario),
+      formatCurrency(getItemTotal(item))
+    ];
+  });
+
+  autoTable(doc, {
+    startY: 65,
+    head: [['Quant.', 'Unid.', 'Descrição', 'Unitário', 'Total']],
+    body: tableRows,
+    theme: 'plain',
+    headStyles: { fontStyle: 'bold', textColor: 0 },
+    styles: { fontSize: 10, cellPadding: 2 },
+    columnStyles: {
+      0: { halign: 'center' },
+      1: { halign: 'center' },
+      3: { halign: 'right' },
+      4: { halign: 'right' }
+    }
+  });
+  
+  const finalY = doc.lastAutoTable.finalY + 10;
+  const subtotal = itemsSource.reduce((acc, item) => acc + getItemTotal(item), 0);
+  
+  autoTable(doc, {
+    startY: finalY,
+    head: [['Subtotal', 'Desconto', 'Acréscimo', 'Total']],
+    body: [[
+      formatCurrency(subtotal),
+      'R$ 0,00',
+      'R$ 0,00',
+      formatCurrency(subtotal)
+    ]],
+    theme: 'plain',
+    headStyles: { fontStyle: 'bold', textColor: 0, halign: 'center', fillColor: [240, 240, 240] },
+    bodyStyles: { halign: 'center', fontStyle: 'bold' }
+  });
+
+  const obsY = doc.lastAutoTable.finalY + 15;
+  doc.setFont("helvetica", "bold");
+  doc.text('OBSERVAÇÕES', 14, obsY);
+  
+  const sigY = obsY + 40;
+  doc.line(30, sigY, 90, sigY);
+  doc.setFont("helvetica", "normal");
+  doc.text('Andressa Oliveira', 60, sigY + 5, { align: 'center' });
+  
+  doc.line(120, sigY, 180, sigY);
+  doc.text(cliente.nome, 150, sigY + 5, { align: 'center' });
+
+  doc.save(`Orcamento_${orc.id || 'doc'}.pdf`);
 };
 
 const gerarOS = async (orc) => {
@@ -221,13 +339,14 @@ const gerarOS = async (orc) => {
         valor_unitario: i.valor_unitario,
         produto_id: i.produto_id || null,
         cfop: i.cfop || '',
-        unid: i.unid || 'UN'
+        unid: i.unid || 'UN',
+        m2: i.unid === 'MT²' ? i.m2 : 0
       }))
     };
     await api.post('/ordens', payload);
-    alert('Ordem de Serviço gerada com sucesso!');
+    osModal.value = { show: true, message: 'Ordem de Serviço gerada com sucesso!', type: 'success' };
   } catch (e) {
-    alert(e.message);
+    osModal.value = { show: true, message: e.message || 'Erro ao gerar OS.', type: 'error' };
   }
 };
 </script>
@@ -257,6 +376,7 @@ label { font-size: 0.7rem; font-weight: 800; color: #94a3b8; letter-spacing: 0.5
 
 .item-row { display: grid; grid-template-columns: 1fr; gap: 16px; padding: 20px; background: #f8fafc; border-radius: 16px; margin-bottom: 12px; border: 1px solid #f1f5f9; }
 .row-details { display: grid; grid-template-columns: 80px 120px 1fr auto; gap: 16px; align-items: end; }
+.row-details.has-m2 { grid-template-columns: 80px 100px 120px 1fr auto; }
 .item-subtotal { font-weight: 900; color: #56a6c1; font-size: 1.1rem; text-align: right; padding-bottom: 10px; }
 .btn-remove { background: #fee2e2; color: #ef4444; border: none; width: 40px; height: 40px; border-radius: 10px; cursor: pointer; font-weight: bold; }
 
@@ -275,10 +395,19 @@ label { font-size: 0.7rem; font-weight: 800; color: #94a3b8; letter-spacing: 0.5
 .h-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .h-btn { flex: 1; padding: 8px; border-radius: 8px; border: 1.5px solid #f1f5f9; background: #fff; font-size: 0.75rem; font-weight: 700; color: #64748b; cursor: pointer; }
 
+.modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+.modal-card.mini-modal { background: #fff; width: 100%; max-width: 400px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
+.modal-header { padding: 20px 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+.modal-header h3 { font-size: 1.1rem; font-weight: 800; color: #1e293b; margin: 0; }
+.close-x { background: transparent; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; line-height: 1; }
+.modal-body { padding: 24px; color: #475569; font-size: 0.95rem; line-height: 1.5; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; background: #f8fafc; }
+
 @media (max-width: 768px) {
   .form-view-container { padding: 16px; }
   .form-top-row { grid-template-columns: 1fr; gap: 16px; }
   .row-details { grid-template-columns: 1fr 1fr; }
+  .row-details.has-m2 { grid-template-columns: 1fr 1fr; }
   .item-subtotal { grid-column: span 2; text-align: center; }
   .btn-pri { width: 100%; }
 }

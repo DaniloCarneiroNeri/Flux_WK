@@ -166,7 +166,7 @@ const deleteProduto = async (id) => {
 .status-tag { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 800; }
 .status-tag.billed { background: #f3e8ff; color: #9333ea; }
 .btn-edit-small { background: #56a6c1; border: none; padding: 8px 16px; border-radius: 8px; color: #fff; font-weight: 800; cursor: pointer; font-size: 0.7rem; }
-.text-right { text-align: right; }
+.text-right { text-align: right !important; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
 .modal-card { background: #fff; width: 100%; max-width: 650px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); display: flex; flex-direction: column; max-height: 95vh; }
 .modal-header { padding: 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }

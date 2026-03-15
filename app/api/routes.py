@@ -205,12 +205,15 @@ def create_ordem(ordem: OrdemServicoCreate):
 @router.put("/ordens/{order_id}")
 def update_ordem(order_id: int, ordem: OrdemServicoCreate):
     try:
-        supabase.table("ordens_servico").update({
+        update_data = {
             "cliente_id": ordem.cliente_id,
             "valor_total": ordem.valor_total,
             "observacoes": ordem.observacoes,
-            "status": ordem.status
-        }).eq("id", order_id).execute()
+            "status": ordem.status,
+            "desconto": ordem.dict().get("desconto", 0)
+        }
+        
+        supabase.table("ordens_servico").update(update_data).eq("id", order_id).execute()
 
         supabase.table("itens_ordem").delete().eq("ordem_id", order_id).execute()
 

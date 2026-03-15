@@ -3,7 +3,7 @@ from typing import List, Optional
 from datetime import date, datetime
 
 class ItemOrdemSchema(BaseModel):
-    servico_id: Optional[int] = None
+    produto_id: Optional[int] = None
     descricao_item: str
     valor_unitario: float
     quantidade: int
