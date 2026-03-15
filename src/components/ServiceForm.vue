@@ -239,7 +239,7 @@ const downloadPDF = (orc) => {
   
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text('Andressa Oliveira', 50, 16);
+  doc.text('W&K VIDROS', 50, 16);
   
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
@@ -319,7 +319,7 @@ const downloadPDF = (orc) => {
   const sigY = obsY + 40;
   doc.line(30, sigY, 90, sigY);
   doc.setFont("helvetica", "normal");
-  doc.text('Andressa Oliveira', 60, sigY + 5, { align: 'center' });
+  doc.text('W&K VIDROS', 60, sigY + 5, { align: 'center' });
   
   doc.line(120, sigY, 180, sigY);
   doc.text(cliente.nome, 150, sigY + 5, { align: 'center' });

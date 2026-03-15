@@ -125,26 +125,45 @@ class NFeBuilder:
             etree.SubElement(enderDest, f"{{{NFE_NAMESPACE}}}{tag}").text = val
         etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}indIEDest").text = "9"
         
-        q_com = 28.0000
-        v_un = 50.0000
-        v_prod_calc = q_com * v_un
+        v_prod_total = 0.0
         
-        det = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}det", nItem="1")
-        prod = etree.SubElement(det, f"{{{NFE_NAMESPACE}}}prod")
-        tags_prod = [("cProd", "000"), ("cEAN", "SEM GTIN"), ("xProd", "FORRO PVC 10MM"), ("NCM", "39162000"), ("CFOP", "5102"), ("uCom", "MT"), ("qCom", f"{q_com:.4f}"), ("vUnCom", f"{v_un:.4f}"), ("vProd", f"{v_prod_calc:.2f}"), ("cEANTrib", "SEM GTIN"), ("uTrib", "MT"), ("qTrib", f"{q_com:.4f}"), ("vUnTrib", f"{v_un:.4f}"), ("indTot", "1")]
-        for tag, val in tags_prod:
-            etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}{tag}").text = val
-        
-        imp = etree.SubElement(det, f"{{{NFE_NAMESPACE}}}imposto")
-        icms = etree.SubElement(imp, f"{{{NFE_NAMESPACE}}}ICMS")
-        sn = etree.SubElement(icms, f"{{{NFE_NAMESPACE}}}ICMSSN102")
-        etree.SubElement(sn, f"{{{NFE_NAMESPACE}}}orig").text = "0"
-        etree.SubElement(sn, f"{{{NFE_NAMESPACE}}}CSOSN").text = "102"
-        
-        for imp_tag in ["PIS", "COFINS"]:
-            sub_imp = etree.SubElement(imp, f"{{{NFE_NAMESPACE}}}{imp_tag}")
-            sub_nt = etree.SubElement(sub_imp, f"{{{NFE_NAMESPACE}}}{imp_tag}NT")
-            etree.SubElement(sub_nt, f"{{{NFE_NAMESPACE}}}CST").text = "07"
+        for idx, it in enumerate(dados.get("itens", [])):
+            q_com = float(it["quantidade"])
+            v_un = float(it["valor_unitario"])
+            v_prod_calc = q_com * v_un
+            v_prod_total += v_prod_calc
+            
+            det = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}det", nItem=str(idx+1))
+            prod = etree.SubElement(det, f"{{{NFE_NAMESPACE}}}prod")
+            tags_prod = [
+                ("cProd", str(idx+1).zfill(3)), 
+                ("cEAN", "SEM GTIN"), 
+                ("xProd", it["descricao"]), 
+                ("NCM", "39162000"), 
+                ("CFOP", str(it["cfop"])), 
+                ("uCom", str(it["unid"])[:6]), 
+                ("qCom", f"{q_com:.4f}"), 
+                ("vUnCom", f"{v_un:.4f}"), 
+                ("vProd", f"{v_prod_calc:.2f}"), 
+                ("cEANTrib", "SEM GTIN"), 
+                ("uTrib", str(it["unid"])[:6]), 
+                ("qTrib", f"{q_com:.4f}"), 
+                ("vUnTrib", f"{v_un:.4f}"), 
+                ("indTot", "1")
+            ]
+            for tag, val in tags_prod:
+                etree.SubElement(prod, f"{{{NFE_NAMESPACE}}}{tag}").text = val
+            
+            imp = etree.SubElement(det, f"{{{NFE_NAMESPACE}}}imposto")
+            icms = etree.SubElement(imp, f"{{{NFE_NAMESPACE}}}ICMS")
+            sn = etree.SubElement(icms, f"{{{NFE_NAMESPACE}}}ICMSSN102")
+            etree.SubElement(sn, f"{{{NFE_NAMESPACE}}}orig").text = "0"
+            etree.SubElement(sn, f"{{{NFE_NAMESPACE}}}CSOSN").text = str(it["cst"])
+            
+            for imp_tag in ["PIS", "COFINS"]:
+                sub_imp = etree.SubElement(imp, f"{{{NFE_NAMESPACE}}}{imp_tag}")
+                sub_nt = etree.SubElement(sub_imp, f"{{{NFE_NAMESPACE}}}{imp_tag}NT")
+                etree.SubElement(sub_nt, f"{{{NFE_NAMESPACE}}}CST").text = "07"
         
         tot = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}total")
         ict = etree.SubElement(tot, f"{{{NFE_NAMESPACE}}}ICMSTot")
@@ -156,7 +175,7 @@ class NFeBuilder:
         ]
         
         for f in campos_tot:
-            val = f"{v_prod_calc:.2f}" if f in ["vProd", "vNF"] else "0.00"
+            val = f"{v_prod_total:.2f}" if f in ["vProd", "vNF"] else "0.00"
             etree.SubElement(ict, f"{{{NFE_NAMESPACE}}}{f}").text = val
         
         transp = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}transp")
@@ -165,7 +184,7 @@ class NFeBuilder:
         pag = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}pag")
         dpag = etree.SubElement(pag, f"{{{NFE_NAMESPACE}}}detPag")
         etree.SubElement(dpag, f"{{{NFE_NAMESPACE}}}tPag").text = "01"
-        etree.SubElement(dpag, f"{{{NFE_NAMESPACE}}}vPag").text = f"{v_prod_calc:.2f}"
+        etree.SubElement(dpag, f"{{{NFE_NAMESPACE}}}vPag").text = f"{v_prod_total:.2f}"
         etree.SubElement(pag, f"{{{NFE_NAMESPACE}}}vTroco").text = "0.00"
         
         self.root = root
@@ -235,7 +254,8 @@ class NFeBuilder:
             if os.path.exists(cp): os.unlink(cp)
             if os.path.exists(kp): os.unlink(kp)
 
-def gerar_xml_centi(rps_numero, dados_cliente, discriminacao, valor_total, data_emissao, codigo_ibge_resolvido, caminho_pfx, senha_pfx):
+def gerar_xml_centi(rps_numero, dados_cliente, discriminacao, valor_total, data_emissao, codigo_ibge_resolvido, caminho_pfx, senha_pfx, itens=None):
+    if itens is None: itens = []
     cert, key = carregar_certificado(caminho_pfx, senha_pfx)
     if not cert: return {"sucesso": False, "erros": ["Certificado invalido"]}
     doc = dados_cliente.get("documento", "").replace(".", "").replace("-", "").replace("/", "").strip()
@@ -251,7 +271,8 @@ def gerar_xml_centi(rps_numero, dados_cliente, discriminacao, valor_total, data_
         "numero": str(dados_cliente.get("numero") or "SN"), 
         "bairro": dados_cliente.get("bairro", ""), 
         "uf": dados_cliente.get("uf", ""), 
-        "cep": dados_cliente.get("cep", "").replace("-", "").strip()
+        "cep": dados_cliente.get("cep", "").replace("-", "").strip(),
+        "itens": itens
     })
     try:
         resultado = builder.assinar_e_transmitir(cert, key, nfe_id)

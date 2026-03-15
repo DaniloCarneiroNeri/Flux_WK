@@ -420,6 +420,46 @@ def emitir_nota_fiscal(dados: EmissaoNotaRequest):
             if not codigo_ibge:
                 codigo_ibge = "5209903"
 
+        response_ordem = supabase.table("ordens_servico").select("*, itens_ordem(*)").eq("id", dados.ordem_id).execute()
+        if not response_ordem.data:
+            raise HTTPException(status_code=404, detail="Ordem de Serviço não encontrada")
+            
+        ordem = response_ordem.data[0]
+        itens_ordem = ordem.get("itens_ordem", [])
+        
+        if not itens_ordem:
+            raise HTTPException(status_code=400, detail="A Ordem de Serviço não possui itens.")
+            
+        itens_nfe = []
+        for i, item in enumerate(itens_ordem):
+            cfop = "5102"
+            cst = "102"
+            unid = "UN"
+            produto_id = item.get("produto_id") or item.get("servico_id")
+            
+            if produto_id:
+                resp_prod = supabase.table("produtos").select("*").eq("id", produto_id).execute()
+                if resp_prod.data:
+                    prod = resp_prod.data[0]
+                    cfop = prod.get("cfop") or "5102"
+                    cst = prod.get("cst") or "102"
+                    hex_val = (prod.get('unid') or '').replace('\\x', '')
+                    if hex_val:
+                        try:
+                            unid = bytes.fromhex(hex_val).decode('utf-8')
+                        except:
+                            unid = "UN"
+                            
+            itens_nfe.append({
+                "nItem": str(i + 1),
+                "descricao": item.get("descricao_item", "Item sem descrição"),
+                "quantidade": item.get("quantidade", 1),
+                "valor_unitario": item.get("valor_unitario", 0),
+                "cfop": cfop,
+                "cst": cst,
+                "unid": unid
+            })
+
         numero_nfe = int(time.time()) % 1000000000
         data_emissao = datetime.now().strftime('%Y-%m-%dT%H:%M:%S-03:00')
 
@@ -431,7 +471,8 @@ def emitir_nota_fiscal(dados: EmissaoNotaRequest):
             data_emissao=data_emissao,
             codigo_ibge_resolvido=codigo_ibge,
             caminho_pfx=ARQUIVO_CERTIFICADO,
-            senha_pfx=SENHA_CERTIFICADO
+            senha_pfx=SENHA_CERTIFICADO,
+            itens=itens_nfe
         )
 
         if not resultado_emissao["sucesso"]:

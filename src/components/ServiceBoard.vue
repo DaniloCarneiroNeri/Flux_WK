@@ -302,65 +302,363 @@ const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'curre
 const generateDanfePdf = (xmlString) => {
   const parser = new DOMParser();
   const xml = parser.parseFromString(xmlString, "application/xml");
-  const doc = new jsPDF();
-  
-  const nNF = xml.getElementsByTagName("nNF")[0]?.textContent || "---";
-  const serie = xml.getElementsByTagName("serie")[0]?.textContent || "1";
-  const chave = xml.getElementsByTagName("infNFe")[0]?.getAttribute("Id")?.replace("NFe", "") || "---";
-  const nProt = xml.getElementsByTagName("nProt")[0]?.textContent || "---";
-  const dhEmi = xml.getElementsByTagName("dhEmi")[0]?.textContent?.split("T")[0] || "---";
-  
-  doc.rect(10, 10, 190, 45);
-  doc.addImage(logoImg, 'PNG', 12, 15, 30, 25);
-  doc.setFontSize(10); doc.setFont("helvetica", "bold");
-  doc.text("LUCAS ABRAAO NERI DE MELO", 45, 20);
+  const doc = new jsPDF('p', 'mm', 'a4');
+
+  const getText = (tag, parent = xml) => parent.getElementsByTagName(tag)[0]?.textContent || "";
+
+  const nNF = getText("nNF") || "000.000.000";
+  const serie = getText("serie") || "0";
+  const chave = xml.getElementsByTagName("infNFe")[0]?.getAttribute("Id")?.replace("NFe", "") || "".padEnd(44, "0");
+  const nProt = getText("nProt");
+  const dhEmiFull = getText("dhEmi");
+  const dhEmi = dhEmiFull ? dhEmiFull.split("T")[0].split("-").reverse().join("/") : "";
+  const dhSai = dhEmi;
+
+  const emitNome = getText("xNome", xml.getElementsByTagName("emit")[0]) || "LUCAS ABRAAO NERI DE MELO";
+  const emitCNPJ = getText("CNPJ", xml.getElementsByTagName("emit")[0]) || "55.952.245/0001-00";
+  const emitIE = getText("IE", xml.getElementsByTagName("emit")[0]) || "201690195";
+  const enderEmit = xml.getElementsByTagName("enderEmit")[0];
+  const emitLgr = enderEmit ? getText("xLgr", enderEmit) : "AVENIDA 21 DE ABRIL, SN-QD 05 LT 10/11";
+  const emitBairro = enderEmit ? getText("xBairro", enderEmit) : "SETOR SOLON AMARAL";
+  const emitMun = enderEmit ? getText("xMun", enderEmit) : "Iaciara";
+  const emitUF = enderEmit ? getText("UF", enderEmit) : "GO";
+
+  const destNode = xml.getElementsByTagName("dest")[0];
+  const destNome = getText("xNome", destNode);
+  const destCNPJ = getText("CNPJ", destNode) || getText("CPF", destNode);
+  const enderDest = destNode?.getElementsByTagName("enderDest")[0];
+  const destLgr = enderDest ? `${getText("xLgr", enderDest)}, ${getText("nro", enderDest)}` : "";
+  const destBairro = getText("xBairro", enderDest);
+  const destMun = getText("xMun", enderDest);
+  const destUF = getText("UF", enderDest);
+  const destCEP = getText("CEP", enderDest);
+  const destFone = getText("fone", enderDest);
+
+  const natOp = getText("natOp") || "VENDAS";
+  const icmsTot = xml.getElementsByTagName("ICMSTot")[0];
+  const vBC = getText("vBC", icmsTot) || "0.00";
+  const vICMS = getText("vICMS", icmsTot) || "0.00";
+  const vBCST = getText("vBCST", icmsTot) || "0.00";
+  const vST = getText("vST", icmsTot) || "0.00";
+  const vProd = getText("vProd", icmsTot) || "0.00";
+  const vFrete = getText("vFrete", icmsTot) || "0.00";
+  const vSeg = getText("vSeg", icmsTot) || "0.00";
+  const vDesc = getText("vDesc", icmsTot) || "0.00";
+  const vOutro = getText("vOutro", icmsTot) || "0.00";
+  const vIPI = getText("vIPI", icmsTot) || "0.00";
+  const vNF = getText("vNF", icmsTot) || "0.00";
+
+  const x = 5;
+  let y = 5;
+
+  doc.setLineWidth(0.2);
+  doc.rect(x, y, 160, 15);
+  doc.rect(x+160, y, 40, 15);
+  doc.setFontSize(6);
   doc.setFont("helvetica", "normal");
-  doc.text("AVENIDA 21 DE ABRIL, SN-QD 05 LT 10/11", 45, 25);
-  doc.text("SETOR SOLON AMARAL - Iaciara, GO", 45, 30);
-  doc.text("CNPJ: 55.952.245/0001-00", 45, 35);
-  
-  doc.rect(140, 10, 60, 45);
-  doc.setFontSize(12); doc.text("DANFE", 160, 20);
-  doc.setFontSize(8); doc.text("Doc. Auxiliar da NF-e", 155, 25);
-  doc.text(`Nº ${nNF}`, 160, 35);
-  doc.text(`SÉRIE: ${serie}`, 160, 40);
-  
-  doc.rect(10, 56, 190, 15);
-  doc.setFontSize(7); doc.text("CHAVE DE ACESSO", 12, 60);
-  doc.setFontSize(9); doc.text(chave, 12, 65);
-  doc.setFontSize(7); doc.text("PROTOCOLO DE AUTORIZAÇÃO", 145, 60);
-  doc.setFontSize(9); doc.text(nProt, 145, 65);
-  
-  const dest = xml.getElementsByTagName("dest")[0];
-  doc.rect(10, 75, 190, 25);
-  doc.setFontSize(7); doc.text("DESTINATÁRIO / REMETENTE", 12, 78);
-  doc.setFontSize(9); doc.text(`NOME: ${dest.getElementsByTagName("xNome")[0]?.textContent}`, 12, 85);
-  doc.text(`CPF/CNPJ: ${dest.getElementsByTagName("CPF")[0]?.textContent || dest.getElementsByTagName("CNPJ")[0]?.textContent}`, 12, 90);
-  doc.text(`DATA EMISSÃO: ${dhEmi}`, 155, 85);
-  
+  doc.text(`RECEBEMOS DE ${emitNome} OS PRODUTOS E/OU SERVIÇOS CONSTANTES DA NOTA FISCAL ELETRÔNICA INDICADA AO LADO`, x+2, y+3, { maxWidth: 156 });
+  doc.line(x, y+6, x+160, y+6);
+  doc.text("DATA DE RECEBIMENTO", x+2, y+9);
+  doc.line(x+35, y+6, x+35, y+15);
+  doc.text("IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR", x+37, y+9);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.text("NF-e", x+162, y+6);
+  doc.setFontSize(10);
+  doc.text(`Nº ${nNF}`, x+162, y+10);
+  doc.text(`SÉRIE ${serie}`, x+162, y+14);
+
+  y += 18;
+  doc.line(x, y, x+200, y);
+
+  y += 2;
+  doc.rect(x, y, 85, 30);
+  doc.addImage(logoImg, 'PNG', x+2, y+2, 20, 20);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.text(emitNome, x+25, y+5, { maxWidth: 60 });
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "normal");
+  doc.text(`${emitLgr}`, x+25, y+12, { maxWidth: 60 });
+  doc.text(`${emitBairro} - ${emitMun}, ${emitUF}`, x+25, y+15, { maxWidth: 60 });
+
+  doc.rect(x+85, y, 30, 30);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("DANFE", x+87, y+5);
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "normal");
+  doc.text("Documento Auxiliar da", x+87, y+8);
+  doc.text("Nota Fiscal Eletrônica", x+87, y+11);
+  doc.setFontSize(7);
+  doc.text("0 - Entrada", x+87, y+15);
+  doc.text("1 - Saída", x+87, y+18);
+  doc.rect(x+105, y+13, 5, 5);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.text("1", x+106, y+17);
+  doc.text(`Nº ${nNF}`, x+87, y+23);
+  doc.text(`SÉRIE: ${serie}`, x+87, y+26);
+  doc.text("Página 1 de 1", x+87, y+29);
+
+  doc.rect(x+115, y, 85, 30);
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "normal");
+  doc.text("CONTROLE DO FISCO", x+117, y+4);
+
+  doc.rect(x+117, y+6, 80, 10);
+  doc.setFontSize(10);
+  doc.text("||| |||| || ||| ||||| ||| ||", x+140, y+13);
+
+  doc.setFontSize(6);
+  doc.text("CHAVE DE ACESSO", x+117, y+20);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  const formattedChave = chave.replace(/(.{4})/g, '$1 ').trim();
+  doc.text(formattedChave, x+117, y+24);
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "normal");
+  doc.text("Consulta de autenticidade no portal nacional da NF-e", x+117, y+27);
+  doc.text("www.nfe.fazenda.gov.br/portal ou no site da Sefaz Autorizadora", x+117, y+29);
+
+  y += 30;
+  doc.rect(x, y, 105, 8);
+  doc.setFontSize(6);
+  doc.text("NATUREZA DA OPERAÇÃO", x+2, y+3);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text(natOp, x+2, y+7);
+
+  doc.rect(x+105, y, 95, 8);
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "normal");
+  doc.text("PROTOCOLO DE AUTORIZAÇÃO DE USO", x+107, y+3);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text(nProt || "", x+107, y+7);
+
+  y += 8;
+  doc.rect(x, y, 65, 8);
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "normal");
+  doc.text("INSCRIÇÃO ESTADUAL", x+2, y+3);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text(emitIE, x+2, y+7);
+
+  doc.rect(x+65, y, 65, 8);
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "normal");
+  doc.text("INSCRIÇÃO ESTADUAL DO SUBST. TRIB.", x+67, y+3);
+
+  doc.rect(x+130, y, 70, 8);
+  doc.text("CNPJ / CPF", x+132, y+3);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text(emitCNPJ, x+132, y+7);
+
+  y += 10;
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("DESTINATÁRIO / REMETENTE", x, y);
+  y += 2;
+  doc.rect(x, y, 120, 8);
+  doc.setFontSize(5);
+  doc.setFont("helvetica", "normal");
+  doc.text("NOME / RAZÃO SOCIAL", x+2, y+3);
+  doc.setFontSize(7);
+  doc.text(destNome, x+2, y+7);
+
+  doc.rect(x+120, y, 50, 8);
+  doc.setFontSize(5);
+  doc.text("CNPJ / CPF", x+122, y+3);
+  doc.setFontSize(7);
+  doc.text(destCNPJ, x+122, y+7);
+
+  doc.rect(x+170, y, 30, 8);
+  doc.setFontSize(5);
+  doc.text("DATA DA EMISSÃO", x+172, y+3);
+  doc.setFontSize(7);
+  doc.text(dhEmi, x+172, y+7);
+
+  y += 8;
+  doc.rect(x, y, 90, 8);
+  doc.setFontSize(5);
+  doc.text("ENDEREÇO", x+2, y+3);
+  doc.setFontSize(7);
+  doc.text(destLgr, x+2, y+7);
+
+  doc.rect(x+90, y, 45, 8);
+  doc.setFontSize(5);
+  doc.text("BAIRRO / DISTRITO", x+92, y+3);
+  doc.setFontSize(7);
+  doc.text(destBairro, x+92, y+7);
+
+  doc.rect(x+135, y, 35, 8);
+  doc.setFontSize(5);
+  doc.text("CEP", x+137, y+3);
+  doc.setFontSize(7);
+  doc.text(destCEP, x+137, y+7);
+
+  doc.rect(x+170, y, 30, 8);
+  doc.setFontSize(5);
+  doc.text("DATA DE ENTRADA / SAÍDA", x+172, y+3);
+  doc.setFontSize(7);
+  doc.text(dhSai, x+172, y+7);
+
+  y += 8;
+  doc.rect(x, y, 90, 8);
+  doc.setFontSize(5);
+  doc.text("MUNICÍPIO", x+2, y+3);
+  doc.setFontSize(7);
+  doc.text(destMun, x+2, y+7);
+
+  doc.rect(x+90, y, 15, 8);
+  doc.setFontSize(5);
+  doc.text("UF", x+92, y+3);
+  doc.setFontSize(7);
+  doc.text(destUF, x+92, y+7);
+
+  doc.rect(x+105, y, 30, 8);
+  doc.setFontSize(5);
+  doc.text("FONE / FAX", x+107, y+3);
+  doc.setFontSize(7);
+  doc.text(destFone, x+107, y+7);
+
+  doc.rect(x+135, y, 35, 8);
+  doc.setFontSize(5);
+  doc.text("INSCRIÇÃO ESTADUAL", x+137, y+3);
+
+  doc.rect(x+170, y, 30, 8);
+  doc.setFontSize(5);
+  doc.text("HORA DE ENTRADA / SAÍDA", x+172, y+3);
+
+  y += 10;
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("CÁLCULO DO IMPOSTO", x, y);
+  y += 2;
+  let wI = 200 / 7;
+  doc.rect(x, y, wI, 8); doc.setFontSize(5); doc.setFont("helvetica","normal"); doc.text("BASE DE CÁLCULO DO ICMS", x+2, y+3); doc.setFontSize(7); doc.text(vBC, x+2, y+7);
+  doc.rect(x+wI, y, wI, 8); doc.setFontSize(5); doc.text("VALOR DO ICMS", x+wI+2, y+3); doc.setFontSize(7); doc.text(vICMS, x+wI+2, y+7);
+  doc.rect(x+wI*2, y, wI, 8); doc.setFontSize(5); doc.text("BASE DE CÁLCULO DO ICMS ST", x+wI*2+2, y+3); doc.setFontSize(7); doc.text(vBCST, x+wI*2+2, y+7);
+  doc.rect(x+wI*3, y, wI, 8); doc.setFontSize(5); doc.text("VALOR DO ICMS ST", x+wI*3+2, y+3); doc.setFontSize(7); doc.text(vST, x+wI*3+2, y+7);
+  doc.rect(x+wI*4, y, wI*3, 8); doc.setFontSize(5); doc.text("VALOR TOTAL DOS PRODUTOS", x+wI*4+2, y+3); doc.setFontSize(7); doc.text(vProd, x+wI*4+2, y+7);
+
+  y += 8;
+  doc.rect(x, y, wI, 8); doc.setFontSize(5); doc.text("VALOR DO FRETE", x+2, y+3); doc.setFontSize(7); doc.text(vFrete, x+2, y+7);
+  doc.rect(x+wI, y, wI, 8); doc.setFontSize(5); doc.text("VALOR DO SEGURO", x+wI+2, y+3); doc.setFontSize(7); doc.text(vSeg, x+wI+2, y+7);
+  doc.rect(x+wI*2, y, wI, 8); doc.setFontSize(5); doc.text("DESCONTO", x+wI*2+2, y+3); doc.setFontSize(7); doc.text(vDesc, x+wI*2+2, y+7);
+  doc.rect(x+wI*3, y, wI, 8); doc.setFontSize(5); doc.text("OUTRAS DESPESAS ACESSÓRIAS", x+wI*3+2, y+3); doc.setFontSize(7); doc.text(vOutro, x+wI*3+2, y+7);
+  doc.rect(x+wI*4, y, wI, 8); doc.setFontSize(5); doc.text("VALOR DO IPI", x+wI*4+2, y+3); doc.setFontSize(7); doc.text(vIPI, x+wI*4+2, y+7);
+  doc.rect(x+wI*5, y, wI*2, 8); doc.setFontSize(5); doc.text("VALOR TOTAL DA NOTA", x+wI*5+2, y+3); doc.setFontSize(7); doc.setFont("helvetica","bold"); doc.text(vNF, x+wI*5+2, y+7);
+
+  y += 10;
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("TRANSPORTADOR / VOLUMES TRANSPORTADOS", x, y);
+  y += 2;
+  doc.rect(x, y, 90, 8); doc.setFontSize(5); doc.setFont("helvetica","normal"); doc.text("RAZÃO SOCIAL", x+2, y+3);
+  doc.rect(x+90, y, 30, 8); doc.text("FRETE POR CONTA", x+92, y+3); doc.setFontSize(6); doc.text("9 - Sem Frete", x+92, y+7); doc.setFontSize(5);
+  doc.rect(x+120, y, 20, 8); doc.text("CÓDIGO ANTT", x+122, y+3);
+  doc.rect(x+140, y, 20, 8); doc.text("PLACA DO VEÍCULO", x+142, y+3);
+  doc.rect(x+160, y, 10, 8); doc.text("UF", x+162, y+3);
+  doc.rect(x+170, y, 30, 8); doc.text("CNPJ / CPF", x+172, y+3);
+
+  y += 8;
+  doc.rect(x, y, 90, 8); doc.text("ENDEREÇO", x+2, y+3);
+  doc.rect(x+90, y, 50, 8); doc.text("MUNICÍPIO", x+92, y+3);
+  doc.rect(x+140, y, 20, 8); doc.text("UF", x+142, y+3);
+  doc.rect(x+160, y, 40, 8); doc.text("INSCRIÇÃO ESTADUAL", x+162, y+3);
+
+  y += 8;
+  doc.rect(x, y, 25, 8); doc.text("QUANTIDADE", x+2, y+3);
+  doc.rect(x+25, y, 40, 8); doc.text("ESPÉCIE", x+27, y+3);
+  doc.rect(x+65, y, 40, 8); doc.text("MARCA", x+67, y+3);
+  doc.rect(x+105, y, 35, 8); doc.text("NUMERAÇÃO", x+107, y+3);
+  doc.rect(x+140, y, 30, 8); doc.text("PESO BRUTO", x+142, y+3);
+  doc.rect(x+170, y, 30, 8); doc.text("PESO LÍQUIDO", x+172, y+3);
+
+  y += 10;
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("DADOS DO PRODUTO / SERVIÇO", x, y);
+
   const itens = Array.from(xml.getElementsByTagName("det")).map(det => {
     const prod = det.getElementsByTagName("prod")[0];
+    const imposto = det.getElementsByTagName("imposto")[0];
+    const icms = imposto?.getElementsByTagName("ICMS")[0];
+    const ipi = imposto?.getElementsByTagName("IPI")[0];
+
+    const cProd = getText("cProd", prod);
+    const xProd = getText("xProd", prod);
+    const ncm = getText("NCM", prod);
+    const cfop = getText("CFOP", prod);
+    const uCom = getText("uCom", prod);
+    const qCom = parseFloat(getText("qCom", prod) || 0).toFixed(4);
+    const vUnCom = parseFloat(getText("vUnCom", prod) || 0).toFixed(4);
+    const vProdItem = parseFloat(getText("vProd", prod) || 0).toFixed(2);
+
+    const cst = getText("CST", icms) || getText("CSOSN", icms) || "000";
+    const vBCItem = getText("vBC", icms) || "0.00";
+    const vICMSItem = getText("vICMS", icms) || "0.00";
+    const vIPIItem = getText("vIPI", ipi) || "0.00";
+    const pICMS = getText("pICMS", icms) || "0.00";
+    const pIPI = getText("pIPI", ipi) || "0.00";
+
     return [
-      prod.getElementsByTagName("cProd")[0].textContent,
-      prod.getElementsByTagName("xProd")[0].textContent,
-      prod.getElementsByTagName("NCM")[0].textContent,
-      prod.getElementsByTagName("CFOP")[0].textContent,
-      prod.getElementsByTagName("uCom")[0].textContent,
-      prod.getElementsByTagName("qCom")[0].textContent,
-      formatCurrency(prod.getElementsByTagName("vUnCom")[0].textContent),
-      formatCurrency(prod.getElementsByTagName("vProd")[0].textContent)
+      cProd, xProd, ncm, cst, cfop, uCom, qCom, vUnCom, vProdItem, vBCItem, vICMSItem, vIPIItem, pICMS, pIPI
     ];
   });
-  
+
   autoTable(doc, {
-    startY: 105,
-    head: [['CÓD', 'DESCRIÇÃO', 'NCM', 'CFOP', 'UN', 'QTD', 'UNIT', 'TOTAL']],
+    startY: y + 2,
+    margin: { left: x, right: x },
+    head: [['CÓDIGO', 'DESCRIÇÃO DO PRODUTO / SERVIÇO', 'NCM/SH', 'CST', 'CFOP', 'UNID', 'QTD', 'VLR. UNIT', 'VLR. TOTAL', 'BC ICMS', 'VLR. ICMS', 'VLR. IPI', 'ALÍQ. ICMS', 'ALÍQ. IPI']],
     body: itens,
     theme: 'grid',
-    headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0], fontSize: 7 },
-    styles: { fontSize: 7 }
+    styles: { fontSize: 5, cellPadding: 1, lineColor: [0, 0, 0], lineWidth: 0.2 },
+    headStyles: { fillColor: false, textColor: [0, 0, 0], fontStyle: 'normal', halign: 'center', valign: 'middle' },
+    columnStyles: {
+      0: { cellWidth: 15 },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 12 },
+      3: { cellWidth: 8 },
+      4: { cellWidth: 8 },
+      5: { cellWidth: 8 },
+      6: { cellWidth: 12, halign: 'right' },
+      7: { cellWidth: 12, halign: 'right' },
+      8: { cellWidth: 12, halign: 'right' },
+      9: { cellWidth: 10, halign: 'right' },
+      10: { cellWidth: 10, halign: 'right' },
+      11: { cellWidth: 10, halign: 'right' },
+      12: { cellWidth: 10, halign: 'right' },
+      13: { cellWidth: 10, halign: 'right' }
+    }
   });
-  
+
+  const finalY = doc.lastAutoTable.finalY + 5;
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("CÁLCULO DO ISSQN", x, finalY);
+  doc.rect(x, finalY + 2, 50, 8); doc.setFontSize(5); doc.setFont("helvetica","normal"); doc.text("INSCRIÇÃO MUNICIPAL", x+2, finalY+5);
+  doc.rect(x+50, finalY + 2, 50, 8); doc.text("VALOR TOTAL DOS SERVIÇOS", x+52, finalY+5);
+  doc.rect(x+100, finalY + 2, 50, 8); doc.text("BASE DE CÁLCULO DO ISSQN", x+102, finalY+5);
+  doc.rect(x+150, finalY + 2, 50, 8); doc.text("VALOR DO ISSQN", x+152, finalY+5);
+
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("DADOS ADICIONAIS", x, finalY + 15);
+  doc.rect(x, finalY + 17, 130, 25); doc.setFontSize(5); doc.setFont("helvetica","normal"); doc.text("INFORMAÇÕES COMPLEMENTARES", x+2, finalY+20);
+  const infAdic = xml.getElementsByTagName("infAdic")[0];
+  const infCpl = infAdic ? getText("infCpl", infAdic) : "";
+  if (infCpl) {
+    doc.setFontSize(6);
+    const splitInfCpl = doc.splitTextToSize(infCpl, 126);
+    doc.text(splitInfCpl, x+2, finalY+24);
+  }
+  doc.rect(x+130, finalY + 17, 70, 25); doc.setFontSize(5); doc.text("RESERVADO AO FISCO", x+132, finalY+20);
+
   doc.save(`DANFE_NFe_${nNF}.pdf`);
 };
 
@@ -388,7 +686,7 @@ const emitReceipt = () => {
   doc.addImage(logoImg, 'PNG', 15, 15, 35, 30);
   doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇO', 60, 25);
   doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-  doc.text('WK VIDROS - Lucas Abraão Neri de Melo', 60, 32);
+  doc.text('WK VIDROS - Lucas Abraao Neri de Melo', 60, 32);
   doc.text('CNPJ: 55.952.245/0001-00', 60, 37);
   doc.text('Avenida 21 de Abril - Telefone: (62) 99876-6290', 60, 42);
   doc.setFont('helvetica', 'bold'); doc.text('DADOS DO CLIENTE', 10, 60); doc.line(10, 62, 200, 62);
@@ -404,7 +702,6 @@ const emitReceipt = () => {
 </script>
 
 <style scoped>
-/* Estilos mantidos conforme original para não alterar layout */
 .board-container { padding: 24px; background: #f8fafc; min-height: 100vh; }
 .board-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; gap: 20px; flex-wrap: wrap; }
 .header-info h1 { font-size: 1.5rem; font-weight: 900; color: #1e293b; margin: 0; }

@@ -11,6 +11,7 @@ class ItemOrdemSchema(BaseModel):
 class OrdemServicoCreate(BaseModel):
     cliente_id: int
     valor_total: float
+    desconto: float
     observacoes: Optional[str] = ""
     status: str = "pending"
     items: List[ItemOrdemSchema] = []
