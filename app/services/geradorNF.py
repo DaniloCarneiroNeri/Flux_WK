@@ -122,7 +122,7 @@ class NFeBuilder:
         
         mun_nome = "GOIANIA" if dados["codigo_ibge"] == "5208707" else "IACIARA"
         
-        tags_dest = [("xLgr", normalizar_texto(dados["endereco"])[:60]), ("nro", dados["numero"]), ("xBairro", normalizar_texto(dados["bairro"])[:60]), ("cMun", dados["codigo_ibge"]), ("xMun", mun_nome), ("UF", dados["uf"]), ("CEP", dados["cep"]), ("cPais", "1058"), ("xPais", "BRASIL")]
+        tags_dest = [("xLgr", normalizar_texto(dados["endereco"])[:60]), ("nro", dados["numero"]), ("xBairro", normalizar_texto(dados["bairro"])[:60]), ("cMun", dados["codigo_ibge"]), ("xMun", mun_nome), ("UF", str(dados["uf"]).upper()), ("CEP", dados["cep"]), ("cPais", "1058"), ("xPais", "BRASIL")]
         for tag, val in tags_dest:
             etree.SubElement(enderDest, f"{{{NFE_NAMESPACE}}}{tag}").text = val
         etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}indIEDest").text = "9"
