@@ -11,7 +11,7 @@ import random
 PRESTADOR_CNPJ = "55952245000100"
 PRESTADOR_IE = "201690195"
 NFE_NAMESPACE = "http://www.portalfiscal.inf.br/nfe"
-URL_SEFAZ = "https://homolog.sefaz.go.gov.br/nfe/services/NFeAutorizacao4"
+URL_SEFAZ = "https://nfe.sefaz.go.gov.br/nfe/services/NFeAutorizacao4"
 NS_MAP = {None: NFE_NAMESPACE}
 
 def normalizar_texto(texto):
@@ -99,7 +99,7 @@ class NFeBuilder:
         infNFe = etree.SubElement(root, f"{{{NFE_NAMESPACE}}}infNFe", versao="4.00", Id=f"NFe{chave}")
         
         ide = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}ide")
-        tags_ide = [("cUF", "52"), ("cNF", cnf), ("natOp", "VENDAS"), ("mod", "55"), ("serie", "1"), ("nNF", str(dados["rps_numero"])), ("dhEmi", dh_emi), ("tpNF", "1"), ("idDest", "1"), ("cMunFG", "5209903"), ("tpImp", "1"), ("tpEmis", "1"), ("cDV", str(dv)), ("tpAmb", "2"), ("finNFe", "1"), ("indFinal", "1"), ("indPres", "1"), ("indIntermed", "0"), ("procEmi", "0"), ("verProc", "1.0")]
+        tags_ide = [("cUF", "52"), ("cNF", cnf), ("natOp", "VENDAS"), ("mod", "55"), ("serie", "1"), ("nNF", str(dados["rps_numero"])), ("dhEmi", dh_emi), ("tpNF", "1"), ("idDest", "1"), ("cMunFG", "5209903"), ("tpImp", "1"), ("tpEmis", "1"), ("cDV", str(dv)), ("tpAmb", "1"), ("finNFe", "1"), ("indFinal", "1"), ("indPres", "1"), ("indIntermed", "0"), ("procEmi", "0"), ("verProc", "1.0")]
         for tag, val in tags_ide:
             etree.SubElement(ide, f"{{{NFE_NAMESPACE}}}{tag}").text = val
         
@@ -115,7 +115,7 @@ class NFeBuilder:
         
         dest = etree.SubElement(infNFe, f"{{{NFE_NAMESPACE}}}dest")
         etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}{'CPF' if len(dados['documento_tomador'])==11 else 'CNPJ'}").text = dados["documento_tomador"]
-        etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}xNome").text = "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
+        etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}xNome").text = normalizar_texto(dados["nome"])[:60]
         enderDest = etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}enderDest")
         
         mun_nome = "GOIANIA" if dados["codigo_ibge"] == "5208707" else "IACIARA"

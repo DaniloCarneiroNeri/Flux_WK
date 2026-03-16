@@ -494,7 +494,7 @@ def emitir_nota_fiscal(dados: EmissaoNotaRequest):
             "mensagem": "Nota Fiscal de Produto Emitida e Autorizada",
             "protocolo_sefaz": sefaz_response,
             "chave_acesso": numero_nfe,
-            "ambiente": "Homologação"
+            "ambiente": "Produção"
         }
 
     except Exception as e:
