@@ -125,7 +125,17 @@ class NFeBuilder:
         tags_dest = [("xLgr", normalizar_texto(dados["endereco"])[:60]), ("nro", dados["numero"]), ("xBairro", normalizar_texto(dados["bairro"])[:60]), ("cMun", dados["codigo_ibge"]), ("xMun", mun_nome), ("UF", str(dados["uf"]).upper()), ("CEP", dados["cep"]), ("cPais", "1058"), ("xPais", "BRASIL")]
         for tag, val in tags_dest:
             etree.SubElement(enderDest, f"{{{NFE_NAMESPACE}}}{tag}").text = val
-        etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}indIEDest").text = "9"
+            
+        ie_dest = str(dados.get("ie", "")).strip()
+        if ie_dest and ie_dest.upper() not in ["", "NONE", "NULL", "FALSE"]:
+            if ie_dest.upper() == "ISENTO":
+                etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}indIEDest").text = "2"
+                etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}IE").text = "ISENTO"
+            else:
+                etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}indIEDest").text = "1"
+                etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}IE").text = ''.join(filter(str.isdigit, ie_dest))
+        else:
+            etree.SubElement(dest, f"{{{NFE_NAMESPACE}}}indIEDest").text = "9"
         
         v_prod_total = 0.0
         
@@ -280,6 +290,7 @@ def gerar_xml_centi(rps_numero, dados_cliente, discriminacao, valor_total, data_
         "bairro": dados_cliente.get("bairro", ""), 
         "uf": dados_cliente.get("uf", ""), 
         "cep": dados_cliente.get("cep", "").replace("-", "").strip(),
+        "ie": str(dados_cliente.get("inscricao_estadual") or dados_cliente.get("ie") or ""),
         "itens": itens
     })
     try:
