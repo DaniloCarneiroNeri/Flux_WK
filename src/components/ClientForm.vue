@@ -46,7 +46,7 @@
                 </div>
                 <div class="field grow">
                   <label>E-MAIL</label>
-                  <input type="email" v-model="form.email" class="m-input" placeholder="contato@email.com" required />
+                  <input type="email" v-model="form.email" class="m-input" placeholder="contato@email.com" />
                 </div>
               </div>
 
