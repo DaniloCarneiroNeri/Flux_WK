@@ -236,9 +236,12 @@ class NFeBuilder:
             res = requests.post(
                 URL_SEFAZ, 
                 data=soap_final.encode('utf-8'), 
-                headers={'Content-Type': 'application/soap+xml; charset=utf-8'}, 
+                headers={
+                    'Content-Type': 'application/soap+xml; charset=utf-8',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }, 
                 cert=(cp, kp), 
-                timeout=30,
+                timeout=60,
                 verify=False
             )
             
