@@ -7,6 +7,8 @@ import os
 import subprocess
 import tempfile
 import random
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 PRESTADOR_CNPJ = "55952245000100"
 PRESTADOR_IE = "201690195"
@@ -236,7 +238,8 @@ class NFeBuilder:
                 data=soap_final.encode('utf-8'), 
                 headers={'Content-Type': 'application/soap+xml; charset=utf-8'}, 
                 cert=(cp, kp), 
-                timeout=30
+                timeout=30,
+                verify=False
             )
             
             try:
