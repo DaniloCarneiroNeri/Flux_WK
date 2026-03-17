@@ -7,7 +7,9 @@ class ItemOrdemSchema(BaseModel):
     descricao_item: str
     valor_unitario: float
     quantidade: int
-
+    unid: Optional[str] = "UN"
+    m2: Optional[float] = 0
+    
 class OrdemServicoCreate(BaseModel):
     cliente_id: int
     valor_total: float

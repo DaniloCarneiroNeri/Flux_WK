@@ -454,7 +454,7 @@ def emitir_nota_fiscal(dados: EmissaoNotaRequest):
         for i, item in enumerate(itens_ordem):
             cfop = "5102"
             cst = "102"
-            unid = "UN"
+            unid = item.get("unid", "UN")
             produto_id = item.get("produto_id") or item.get("servico_id")
             
             if produto_id:
@@ -463,17 +463,20 @@ def emitir_nota_fiscal(dados: EmissaoNotaRequest):
                     prod = resp_prod.data[0]
                     cfop = prod.get("cfop") or "5102"
                     cst = prod.get("cst") or "102"
-                    hex_val = (prod.get('unid') or '').replace('\\x', '')
-                    if hex_val:
-                        try:
-                            unid = bytes.fromhex(hex_val).decode('utf-8')
-                        except:
-                            unid = "UN"
-                            
+                    if not item.get("unid"):
+                        hex_val = (prod.get('unid') or '').replace('\\x', '')
+                        if hex_val:
+                            try:
+                                unid = bytes.fromhex(hex_val).decode('utf-8')
+                            except:
+                                unid = "UN"
+
+            qtd_nfe = float(item.get("m2", 0)) if unid == 'MT²' else float(item.get("quantidade", 1))
+
             itens_nfe.append({
                 "nItem": str(i + 1),
                 "descricao": item.get("descricao_item", "Item sem descrição"),
-                "quantidade": item.get("quantidade", 1),
+                "quantidade": qtd_nfe,
                 "valor_unitario": item.get("valor_unitario", 0),
                 "cfop": cfop,
                 "cst": cst,

@@ -119,10 +119,10 @@
                   
                   <div v-for="(item, idx) in form.items" :key="idx" class="os-item-row">
                     <div class="item-desc">
-                      <span class="qty">{{ item.quantidade }}x</span>
+                      <span class="qty">{{ item.unid === 'MT²' ? `${item.m2}m²` : `${item.quantidade}x` }}</span>
                       <span class="name">{{ item.descricao_item }}</span>
                     </div>
-                    <div class="item-val">{{ formatCurrency(item.valor_unitario * item.quantidade) }}</div>
+                    <div class="item-val">{{ formatCurrency(item.unid === 'MT²' ? (item.m2 || 0) * item.valor_unitario : (item.quantidade || 0) * item.valor_unitario) }}</div>
                   </div>
 
                   <div v-if="form.desconto > 0" class="os-item-row discount-line">
@@ -246,7 +246,10 @@ const getStatusLabel = (status) => {
 
 const subtotalItems = computed(() => {
   if (!form.value || !form.value.items) return 0;
-  return form.value.items.reduce((total, item) => total + (item.quantidade * item.valor_unitario), 0);
+  return form.value.items.reduce((total, item) => {
+    const rowTotal = item.unid === 'MT²' ? (item.m2 || 0) * item.valor_unitario : (item.quantidade || 0) * item.valor_unitario;
+    return total + rowTotal;
+  }, 0);
 });
 
 const isLocked = computed(() => isEditing.value && form.value?.status === 'billed');
@@ -672,7 +675,10 @@ const emitNFe = async () => {
       cliente_id: form.value.cliente_id,
       ordem_id: form.value.id,
       valor_servico: form.value.valor_total - form.value.desconto,
-      discriminacao: form.value.items.map(i => `${i.quantidade}x ${i.descricao_item}`).join(' | ')
+      discriminacao: form.value.items.map(i => {
+        const qty = i.unid === 'MT²' ? `${i.m2}m²` : `${i.quantidade}x`;
+        return `${qty} ${i.descricao_item}`;
+      }).join(' | ')
     };
     const res = await api.post('/nfe/emitir', payload);
     if (res.protocolo_sefaz) {
@@ -718,8 +724,14 @@ const emitReceipt = () => {
   doc.setFont('helvetica', 'normal'); doc.text(`NOME: ${client.nome}`, 10, 68);
   doc.text(`CPF/CNPJ: ${client.documento || '---'}`, 10, 73);
   doc.text(`O.S. Nº: ${form.value.id}`, 140, 73);
-  const rows = form.value.items.map(i => [i.descricao_item, i.quantidade, formatCurrency(i.valor_unitario), formatCurrency(i.quantidade * i.valor_unitario)]);
-  autoTable(doc, { startY: 85, head: [['Descrição', 'Qtd', 'Unitário', 'Total']], body: rows, theme: 'grid', headStyles: { fillColor: [86, 166, 193] } });
+  
+  const rows = form.value.items.map(i => {
+    const qty = i.unid === 'MT²' ? `${i.m2}m²` : i.quantidade;
+    const total = i.unid === 'MT²' ? (i.m2 || 0) * i.valor_unitario : i.quantidade * i.valor_unitario;
+    return [i.descricao_item, qty, formatCurrency(i.valor_unitario), formatCurrency(total)];
+  });
+
+  autoTable(doc, { startY: 85, head: [['Descrição', 'Qtd/M²', 'Unitário', 'Total']], body: rows, theme: 'grid', headStyles: { fillColor: [86, 166, 193] } });
   const finalY = doc.lastAutoTable.finalY + 10;
   doc.setFont('helvetica', 'bold'); doc.text(`TOTAL PAGO: ${formatCurrency(form.value.valor_total)}`, 140, finalY + 12);
   doc.save(`Recibo_OS_${form.value.id}.pdf`);
