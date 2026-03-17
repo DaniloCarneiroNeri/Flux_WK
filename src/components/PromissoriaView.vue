@@ -67,7 +67,7 @@
                 <label>PRODUTO / SERVIÇO</label>
                 <select v-model="formCreate.produto_id" class="custom-input" @change="updateProductValue">
                   <option value="" disabled>Selecione um produto</option>
-                  <option v-for="p in dbProducts" :key="p.id" :value="p.id">{{ p.nome }}</option>
+                  <option v-for="p in dbProducts" :key="p.id" :value="p.id">{{ p.descricao || p.nome }}</option>
                 </select>
               </div>
 
@@ -272,7 +272,7 @@ const getClientName = (id) => {
 
 const getProductName = (id) => {
   const p = dbProducts.value.find(p => p.id === id);
-  return p ? p.nome : 'Produto não encontrado';
+  return p ? (p.descricao || p.nome) : 'Produto não encontrado';
 };
 
 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
