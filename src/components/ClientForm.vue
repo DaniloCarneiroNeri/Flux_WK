@@ -31,7 +31,7 @@
               <div class="row">
                 <div class="field">
                   <label>DOCUMENTO</label>
-                  <input type="text" v-model="form.documento" class="m-input" placeholder="CPF ou CNPJ" required />
+                  <input type="text" v-model="form.documento" class="m-input" placeholder="CPF ou CNPJ" />
                 </div>
                 <div class="field">
                   <label>INSC. ESTADUAL</label>
@@ -42,7 +42,7 @@
               <div class="row">
                 <div class="field">
                   <label>TELEFONE</label>
-                  <input type="text" v-model="form.telefone" class="m-input" placeholder="(00) 00000-0000" required />
+                  <input type="text" v-model="form.telefone" class="m-input" placeholder="(00) 00000-0000" />
                 </div>
                 <div class="field grow">
                   <label>E-MAIL</label>
@@ -53,30 +53,30 @@
               <div class="row">
                 <div class="field">
                   <label>CEP</label>
-                  <input type="text" v-model="form.cep" class="m-input" placeholder="00000-000" required />
+                  <input type="text" v-model="form.cep" class="m-input" placeholder="00000-000" />
                 </div>
                 <div class="field grow">
                   <label>ENDEREÇO</label>
-                  <input type="text" v-model="form.endereco" class="m-input" placeholder="Rua, Av..." required />
+                  <input type="text" v-model="form.endereco" class="m-input" placeholder="Rua, Av..." />
                 </div>
               </div>
 
               <div class="row multi">
                 <div class="field mini">
                   <label>Nº</label>
-                  <input type="text" v-model="form.numero" class="m-input" required />
+                  <input type="text" v-model="form.numero" class="m-input" />
                 </div>
                 <div class="field">
                   <label>BAIRRO</label>
-                  <input type="text" v-model="form.bairro" class="m-input" required />
+                  <input type="text" v-model="form.bairro" class="m-input" />
                 </div>
                 <div class="field">
                   <label>CIDADE</label>
-                  <input type="text" v-model="form.municipio" class="m-input" required />
+                  <input type="text" v-model="form.municipio" class="m-input" />
                 </div>
                 <div class="field mini">
                   <label>UF</label>
-                  <input type="text" v-model="form.uf" class="m-input" maxlength="2" required />
+                  <input type="text" v-model="form.uf" class="m-input" maxlength="2" />
                 </div>
               </div>
 

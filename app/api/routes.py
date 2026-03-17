@@ -543,7 +543,7 @@ def login(dados: LoginRequest):
 @router.get("/promissorias")
 def get_promissorias():
     try:
-        response = supabase.table("promissorias").select("*, parcelas:promissorias_parcelas(*)").order("id", desc=True).execute()
+        response = supabase.table("promissorias").select("*, parcelas:promissorias_parcelas(*), clientes(nome), produtos(descricao)").order("id", desc=True).execute()
         return response.data if response.data else []
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -22,11 +22,11 @@
           @click="openDetailsModal(promissoria)"
         >
           <div class="card-header">
-            <h3 class="client-name">{{ getClientName(promissoria.cliente_id) }}</h3>
+            <h3 class="client-name">{{ getClientName(promissoria) }}</h3>
             <span class="card-id">#{{ promissoria.id }}</span>
           </div>
           <div class="card-body">
-            <p class="product-name">{{ getProductName(promissoria.produto_id) }}</p>
+            <p class="product-name">{{ getProductName(promissoria) }}</p>
             <div class="financial-summary">
               <div class="summary-item">
                 <span class="label">Total</span>
@@ -128,8 +128,8 @@
           
           <div class="modal-body scrollable">
             <div class="details-header-box">
-              <h2 class="dh-client">{{ getClientName(selectedPromissoria.cliente_id) }}</h2>
-              <p class="dh-product">{{ getProductName(selectedPromissoria.produto_id) }}</p>
+              <h2 class="dh-client">{{ getClientName(selectedPromissoria) }}</h2>
+              <p class="dh-product">{{ getProductName(selectedPromissoria) }}</p>
               
               <div class="dh-finances">
                 <div class="fin-box">
@@ -265,13 +265,19 @@ onMounted(() => {
   loadData();
 });
 
-const getClientName = (id) => {
-  const c = dbClients.value.find(c => c.id === id);
+const getClientName = (promissoria) => {
+  if (promissoria && promissoria.clientes && promissoria.clientes.nome) {
+    return promissoria.clientes.nome;
+  }
+  const c = dbClients.value.find(c => String(c.id) === String(promissoria?.cliente_id));
   return c ? c.nome : 'Cliente não encontrado';
 };
 
-const getProductName = (id) => {
-  const p = dbProducts.value.find(p => p.id === id);
+const getProductName = (promissoria) => {
+  if (promissoria && promissoria.produtos && (promissoria.produtos.descricao || promissoria.produtos.nome)) {
+    return promissoria.produtos.descricao || promissoria.produtos.nome;
+  }
+  const p = dbProducts.value.find(p => String(p.id) === String(promissoria?.produto_id));
   return p ? (p.descricao || p.nome) : 'Produto não encontrado';
 };
 
@@ -596,3 +602,4 @@ const markAsPaid = async (parcela) => {
   .btn-danger, .btn-sec, .btn-pri { flex: 1; text-align: center; }
 }
 </style>
+}

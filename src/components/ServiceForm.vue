@@ -43,19 +43,22 @@
                     class="m-input" 
                   />
                 </div>
-                <div :class="['row-details', { 'has-m2': item.unid === 'MT²' }]">
-                  <div class="mini-field">
+                <div class="row-details">
+                  <div class="mini-field" v-if="item.unid !== 'MT²'">
                     <label>QTD</label>
                     <input type="number" v-model.number="item.quantidade" class="m-input" />
                   </div>
+                  
                   <div class="mini-field" v-if="item.unid === 'MT²'">
                     <label>M²</label>
                     <input type="number" v-model.number="item.m2" class="m-input" step="0.01" />
                   </div>
+
                   <div class="mini-field">
                     <label>VALOR UNIT.</label>
                     <input type="number" v-model.number="item.valor_unitario" class="m-input" step="0.01" />
                   </div>
+                  
                   <div class="item-subtotal">
                     {{ formatCurrency(getItemTotal(item)) }}
                   </div>
@@ -182,9 +185,9 @@ const updateItemData = (item) => {
 
 const getItemTotal = (item) => {
   if (item.unid === 'MT²') {
-    return item.quantidade * (item.m2 || 0) * item.valor_unitario;
+    return (item.m2 || 0) * item.valor_unitario;
   }
-  return item.quantidade * item.valor_unitario;
+  return (item.quantidade || 0) * item.valor_unitario;
 };
 
 const totalOrcamento = computed(() => itens.value.reduce((total, item) => total + getItemTotal(item), 0));
@@ -200,12 +203,12 @@ const save = async () => {
       valor_total: totalOrcamento.value,
       items: itens.value.map(i => ({
         descricao_item: i.descricao_item,
-        quantidade: i.quantidade,
+        quantidade: i.unid === 'MT²' ? 1 : (i.quantidade || 0),
         valor_unitario: i.valor_unitario,
         produto_id: i.produto_id || null,
         cfop: i.cfop || '',
         unid: i.unid || 'UN',
-        m2: i.unid === 'MT²' ? i.m2 : 0
+        m2: i.unid === 'MT²' ? (i.m2 || 0) : 0
       }))
     };
     if (isEditing.value) {
@@ -272,7 +275,7 @@ const downloadPDF = (orc) => {
   const itemsSource = orc.itens_orcamento || orc.items || [];
   const tableRows = itemsSource.map(item => {
     return [
-      String(item.quantidade),
+      String(item.unid === 'MT²' ? (item.m2 || 0) : (item.quantidade || 0)),
       item.unid || 'UN',
       item.descricao_item,
       formatCurrency(item.valor_unitario),
@@ -336,12 +339,12 @@ const gerarOS = async (orc) => {
       desconto: 0,
       items: (orc.itens_orcamento || orc.items).map(i => ({
         descricao_item: i.descricao_item,
-        quantidade: i.quantidade,
+        quantidade: i.unid === 'MT²' ? 1 : (i.quantidade || 0),
         valor_unitario: i.valor_unitario,
         produto_id: i.produto_id || null,
         cfop: i.cfop || '',
         unid: i.unid || 'UN',
-        m2: i.unid === 'MT²' ? i.m2 : 0
+        m2: i.unid === 'MT²' ? (i.m2 || 0) : 0
       }))
     };
     await api.post('/ordens', payload);
@@ -377,7 +380,6 @@ label { font-size: 0.7rem; font-weight: 800; color: #94a3b8; letter-spacing: 0.5
 
 .item-row { display: grid; grid-template-columns: 1fr; gap: 16px; padding: 20px; background: #f8fafc; border-radius: 16px; margin-bottom: 12px; border: 1px solid #f1f5f9; }
 .row-details { display: grid; grid-template-columns: 80px 120px 1fr auto; gap: 16px; align-items: end; }
-.row-details.has-m2 { grid-template-columns: 80px 100px 120px 1fr auto; }
 .item-subtotal { font-weight: 900; color: #56a6c1; font-size: 1.1rem; text-align: right; padding-bottom: 10px; }
 .btn-remove { background: #fee2e2; color: #ef4444; border: none; width: 40px; height: 40px; border-radius: 10px; cursor: pointer; font-weight: bold; }
 
@@ -408,7 +410,6 @@ label { font-size: 0.7rem; font-weight: 800; color: #94a3b8; letter-spacing: 0.5
   .form-view-container { padding: 16px; }
   .form-top-row { grid-template-columns: 1fr; gap: 16px; }
   .row-details { grid-template-columns: 1fr 1fr; }
-  .row-details.has-m2 { grid-template-columns: 1fr 1fr; }
   .item-subtotal { grid-column: span 2; text-align: center; }
   .btn-pri { width: 100%; }
 }
