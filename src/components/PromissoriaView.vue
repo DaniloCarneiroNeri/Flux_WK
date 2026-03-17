@@ -539,7 +539,7 @@ const markAsPaid = async (parcela) => {
 .details-modal { max-width: 650px; }
 .details-header-box { background: #f8fafc; padding: 24px; border-radius: 16px; margin-bottom: 24px; border: 1px solid #e2e8f0; }
 .dh-client { font-size: 1.3rem; font-weight: 900; color: #1e293b; margin: 0 0 4px 0; }
-.dh-product { font-size: 0.9rem; color: #64748b; margin: 0 0 20px 0; font-weight: 600; }
+.dh-product { display: inline-block; background: #f1f5f9; color: #64748b; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; margin: 0 0 20px 0; border: 1px solid #e2e8f0; }
 
 .dh-finances { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; border-top: 1px dashed #cbd5e1; padding-top: 16px; }
 .fin-box { display: flex; flex-direction: column; gap: 4px; }
