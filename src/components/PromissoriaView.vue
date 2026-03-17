@@ -243,6 +243,18 @@ const loadData = async () => {
     ]);
     dbClients.value = resClients;
     dbProducts.value = resProducts;
+
+    if (Array.isArray(resPromissorias)) {
+      resPromissorias.forEach(prom => {
+        if (Array.isArray(prom.parcelas)) {
+          prom.parcelas.sort((a, b) => {
+            if (a.id && b.id) return a.id - b.id;
+            return a.data_vencimento.localeCompare(b.data_vencimento);
+          });
+        }
+      });
+    }
+
     promissorias.value = resPromissorias;
   } catch (e) {
     triggerNotify('Erro de Conexão', 'Não foi possível carregar os dados.', 'error');
@@ -290,7 +302,16 @@ const openCreateModal = () => {
 
 const openEditModal = () => {
   isEditing.value = true;
-  formCreate.value = JSON.parse(JSON.stringify(selectedPromissoria.value));
+  const promCopy = JSON.parse(JSON.stringify(selectedPromissoria.value));
+  
+  if (Array.isArray(promCopy.parcelas)) {
+    promCopy.parcelas.sort((a, b) => {
+      if (a.id && b.id) return a.id - b.id;
+      return a.data_vencimento.localeCompare(b.data_vencimento);
+    });
+  }
+  
+  formCreate.value = promCopy;
   showDetailsModal.value = false;
   showCreateModal.value = true;
 };
@@ -406,7 +427,12 @@ const decoratedInstallments = computed(() => {
   const todayStr = new Date().toISOString().split('T')[0];
   let foundProxima = false;
 
-  return selectedPromissoria.value.parcelas.map(p => {
+  const sortedParcelas = [...selectedPromissoria.value.parcelas].sort((a, b) => {
+    if (a.id && b.id) return a.id - b.id;
+    return a.data_vencimento.localeCompare(b.data_vencimento);
+  });
+
+  return sortedParcelas.map(p => {
     let statusColor = '';
 
     if (p.status === 'pago') {
