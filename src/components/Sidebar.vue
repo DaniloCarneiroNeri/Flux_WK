@@ -29,6 +29,11 @@
         </div>
       </div>
 
+      <a @click="navigate('promissoria')" :class="{ active: currentSelection === 'promissoria' }" class="nav-item">
+        <span class="nav-icon">📄</span>
+        <span class="nav-text">Promissórias</span>
+      </a>
+
       <a @click="navigate('reports')" :class="{ active: currentSelection === 'reports' }" class="nav-item">
         <span class="nav-icon">📈</span>
         <span class="nav-text">Relatórios</span>

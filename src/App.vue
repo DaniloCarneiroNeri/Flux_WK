@@ -42,6 +42,7 @@ import ServiceForm from './components/ServiceForm.vue';
 import ExpenseForm from './components/ExpenseForm.vue'; 
 import ReportsView from './components/ReportsView.vue';
 import ProdutoForm from './components/ProdutoForm.vue';
+import PromissoriaView from './components/PromissoriaView.vue';
 
 const currentView = ref('board');
 const isAuthenticated = ref(false);
@@ -73,6 +74,7 @@ const activeComponent = computed(() => {
     case 'service-register': return ServiceForm;
     case 'expense-register': return ExpenseForm;
     case 'reports': return ReportsView;
+    case 'promissoria': return PromissoriaView;
     default: return ServiceBoard;
   }
 });

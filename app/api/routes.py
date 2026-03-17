@@ -24,6 +24,24 @@ class ProdutoCreate(BaseModel):
     descricao: str
     unid: str
 
+class ParcelaBody(BaseModel):
+    valor: float
+    data_vencimento: str
+    status: str = 'pendente'
+
+class PromissoriaBody(BaseModel):
+    cliente_id: int
+    produto_id: int
+    valor_unitario: float
+    quantidade: float
+    valor_total: float
+    num_parcelas: int
+    primeiro_vencimento: str
+    parcelas: List[ParcelaBody] = []
+
+class ParcelaUpdateStatus(BaseModel):
+    status: str
+
 @router.get("/clientes")
 def get_clientes():
     response = supabase.table("clientes").select("*").execute()
@@ -521,3 +539,96 @@ def login(dados: LoginRequest):
         raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/promissorias")
+def get_promissorias():
+    try:
+        response = supabase.table("promissorias").select("*, parcelas:promissorias_parcelas(*)").order("id", desc=True).execute()
+        return response.data if response.data else []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/promissorias")
+def create_promissoria(promissoria: PromissoriaBody):
+    try:
+        promissoria_data = {
+            "cliente_id": promissoria.cliente_id,
+            "produto_id": promissoria.produto_id,
+            "valor_unitario": promissoria.valor_unitario,
+            "quantidade": promissoria.quantidade,
+            "valor_total": promissoria.valor_total,
+            "num_parcelas": promissoria.num_parcelas,
+            "primeiro_vencimento": promissoria.primeiro_vencimento
+        }
+        
+        res_prom = supabase.table("promissorias").insert(promissoria_data).execute()
+        if not res_prom.data:
+            raise HTTPException(status_code=500, detail="Erro ao criar promissória")
+            
+        new_id = res_prom.data[0]['id']
+
+        if promissoria.parcelas:
+            parcelas_data = [
+                {
+                    "promissoria_id": new_id,
+                    "valor": p.valor,
+                    "data_vencimento": p.data_vencimento,
+                    "status": p.status
+                } for p in promissoria.parcelas
+            ]
+            supabase.table("promissorias_parcelas").insert(parcelas_data).execute()
+
+        return {"message": "Promissória criada", "id": new_id}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.patch("/promissorias/parcelas/{parcela_id}")
+def update_parcela_status(parcela_id: int, status_update: ParcelaUpdateStatus):
+    try:
+        response = supabase.table("promissorias_parcelas").update({"status": status_update.status}).eq("id", parcela_id).execute()
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Parcela não encontrada")
+        return response.data[0]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+@router.put("/promissorias/{promissoria_id}")
+def update_promissoria(promissoria_id: int, promissoria: PromissoriaBody):
+    try:
+        update_data = {
+            "cliente_id": promissoria.cliente_id,
+            "produto_id": promissoria.produto_id,
+            "valor_unitario": promissoria.valor_unitario,
+            "quantidade": promissoria.quantidade,
+            "valor_total": promissoria.valor_total,
+            "num_parcelas": promissoria.num_parcelas,
+            "primeiro_vencimento": promissoria.primeiro_vencimento
+        }
+
+        supabase.table("promissorias").update(update_data).eq("id", promissoria_id).execute()
+        supabase.table("promissorias_parcelas").delete().eq("promissoria_id", promissoria_id).execute()
+
+        if promissoria.parcelas:
+            parcelas_data = [
+                {
+                    "promissoria_id": promissoria_id,
+                    "valor": p.valor,
+                    "data_vencimento": p.data_vencimento,
+                    "status": p.status
+                } for p in promissoria.parcelas
+            ]
+            supabase.table("promissorias_parcelas").insert(parcelas_data).execute()
+
+        return {"message": "Promissória atualizada"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/promissorias/{promissoria_id}")
+def delete_promissoria(promissoria_id: int):
+    try:
+        response = supabase.table("promissorias").delete().eq("id", promissoria_id).execute()
+        if response.data:
+            return {"message": "Promissória excluída"}
+        raise HTTPException(status_code=404, detail="Promissória não encontrada")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
